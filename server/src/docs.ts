@@ -4,6 +4,9 @@ export const DOCS_HTML = String.raw`
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#1e1e2e" />
+  <meta name="color-scheme" content="dark" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>milieu docs</title>
   <style>
     :root {
