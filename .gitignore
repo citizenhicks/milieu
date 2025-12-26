@@ -1,0 +1,9 @@
+**/target/
+**/node_modules/
+/.DS_Store
+*.log
+.env
+.env.*
+server/wrangler.local.toml
+**/.wrangler/
+**.milieu/

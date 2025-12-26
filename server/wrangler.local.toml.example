@@ -1,0 +1,14 @@
+name = "milieu-api"
+main = "src/index.ts"
+compatibility_date = "2025-12-25"
+route = "milieu.sh/*"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "milieu-db"
+database_id = "REPLACE_ME"
+
+[vars]
+SESSION_TTL_HOURS = "720"
+LOGIN_RATE_LIMIT = "10"
+LOGIN_RATE_WINDOW_SECONDS = "900"

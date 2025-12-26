@@ -1,0 +1,136 @@
+name: release-brew
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+env:
+  FORMULA_NAME: milieu
+  TAP_REPO: citizenhicks/homebrew-milieu
+
+jobs:
+  update-tap-formula:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compute tarball SHA
+        id: tarball
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          VERSION="${TAG#v}"
+          URL="https://github.com/${GITHUB_REPOSITORY}/archive/refs/tags/${TAG}.tar.gz"
+          curl -L -o source.tar.gz "$URL"
+          SHA256="$(shasum -a 256 source.tar.gz | awk '{print $1}')"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          echo "sha256=$SHA256" >> "$GITHUB_OUTPUT"
+      - name: Update tap formula
+        env:
+          TAP_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+        run: |
+          git clone "https://x-access-token:${TAP_TOKEN}@github.com/${TAP_REPO}.git" tap
+          git -C tap config user.email "ci@milieu.sh"
+          git -C tap config user.name "milieu release bot"
+          cat > "tap/Formula/${FORMULA_NAME}.rb" <<EOF
+          class Milieu < Formula
+            desc "E2EE dotenv sync with repo branches"
+            homepage "https://milieu.sh"
+            url "${{ steps.tarball.outputs.url }}"
+            sha256 "${{ steps.tarball.outputs.sha256 }}"
+            license "MIT"
+            version "${{ steps.tarball.outputs.version }}"
+            head "https://github.com/${GITHUB_REPOSITORY}.git", branch: "main"
+
+            depends_on "rust" => :build
+
+            def install
+              system "cargo", "build", "--release", "--manifest-path", "crates/milieu/Cargo.toml"
+              bin.install "target/release/milieu"
+            end
+
+            test do
+              system "#{bin}/milieu", "--version"
+            end
+          end
+          EOF
+          git -C tap add "Formula/${FORMULA_NAME}.rb"
+          if ! git -C tap diff --cached --quiet; then
+            git -C tap commit -m "${FORMULA_NAME} ${{ steps.tarball.outputs.version }}"
+            git -C tap push
+          fi
+
+  build-bottles:
+    needs: update-tap-formula
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-14, ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: Homebrew/actions/setup-homebrew@master
+      - name: Tap formula
+        run: brew tap citizenhicks/milieu
+      - name: Build bottle
+        run: brew install --build-bottle citizenhicks/milieu/milieu
+      - name: Bottle formula
+        run: brew bottle --json --root-url "https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}" citizenhicks/milieu/milieu
+      - name: Normalize bottle filenames
+        run: |
+          for file in *.bottle.*.tar.gz; do
+            if echo "$file" | grep -q "milieu--"; then
+              mv "$file" "${file/milieu--/milieu-}"
+            fi
+          done
+      - name: Guard against double-dash bottles
+        run: |
+          if ls *.bottle.*.tar.gz | grep -q "milieu--"; then
+            echo "Found bottle assets with a double dash in the name. Aborting."
+            exit 1
+          fi
+      - name: Upload bottle artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bottles-${{ matrix.os }}
+          path: |
+            *.bottle.*.tar.gz
+            *.bottle.json
+      - name: Upload bottles to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          generate_release_notes: true
+          files: "*.bottle.*.tar.gz"
+
+  update-bottle-block:
+    needs: build-bottles
+    runs-on: ubuntu-latest
+    steps:
+      - uses: Homebrew/actions/setup-homebrew@master
+      - name: Tap formula
+        run: brew tap citizenhicks/milieu
+      - name: Download bottle artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: bottles-*
+          merge-multiple: true
+          path: bottles
+      - name: Merge bottle metadata
+        run: |
+          brew bottle --merge --write --no-commit --root-url "https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}" bottles/*.json
+      - name: Commit bottle block
+        env:
+          TAP_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+        run: |
+          TAP_PATH="$(brew --repository citizenhicks/milieu)"
+          git -C "$TAP_PATH" remote set-url origin "https://x-access-token:${TAP_TOKEN}@github.com/${TAP_REPO}.git"
+          git -C "$TAP_PATH" config user.email "ci@milieu.sh"
+          git -C "$TAP_PATH" config user.name "milieu release bot"
+          git -C "$TAP_PATH" add "Formula/${FORMULA_NAME}.rb"
+          if ! git -C "$TAP_PATH" diff --cached --quiet; then
+            git -C "$TAP_PATH" commit -m "${FORMULA_NAME} ${GITHUB_REF_NAME} bottles"
+            git -C "$TAP_PATH" push
+          fi
