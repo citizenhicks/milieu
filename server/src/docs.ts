@@ -31,6 +31,7 @@ export const DOCS_HTML = String.raw`
       color: var(--text);
       min-height: 100vh;
       padding: 32px 20px 80px;
+      overflow-x: hidden;
     }
     .container {
       width: min(1200px, 100%);
@@ -49,6 +50,49 @@ export const DOCS_HTML = String.raw`
       border-radius: 16px;
       background: rgba(17,17,27,0.7);
       border: 1px solid var(--surface-1);
+    }
+    .drawer-toggle {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--surface-1);
+      background: rgba(17,17,27,0.7);
+      color: var(--text);
+      font-size: 13px;
+      text-decoration: none;
+    }
+    .drawer-toggle:hover {
+      color: var(--lavender);
+      border-color: var(--surface-2);
+    }
+    .drawer-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(13, 13, 20, 0.6);
+      z-index: 40;
+    }
+    .drawer-panel {
+      position: fixed;
+      top: 0;
+      right: 0;
+      height: 100%;
+      width: min(320px, 90vw);
+      transform: translateX(100%);
+      transition: transform 0.2s ease;
+      background: rgba(17,17,27,0.95);
+      border-left: 1px solid var(--surface-1);
+      padding: 16px;
+      z-index: 50;
+      overflow: auto;
+    }
+    .drawer-panel.open {
+      transform: translateX(0);
+    }
+    .drawer-backdrop.show {
+      display: block;
     }
     .sidebar h3 {
       margin: 0 0 12px 0;
@@ -83,6 +127,7 @@ export const DOCS_HTML = String.raw`
       padding: 6px 8px;
       border-radius: 8px;
       display: block;
+      word-break: break-word;
     }
     .nav-list a.active,
     .nav-list a:hover {
@@ -130,6 +175,7 @@ export const DOCS_HTML = String.raw`
       border-radius: 16px;
       background: linear-gradient(180deg, rgba(49,50,68,0.7), rgba(30,30,46,0.85));
       border: 1px solid var(--surface-1);
+      width: 100%;
     }
     h2 {
       margin: 0 0 12px 0;
@@ -146,6 +192,9 @@ export const DOCS_HTML = String.raw`
       color: var(--text);
       line-height: 1.6;
       overflow-x: auto;
+      max-width: 100%;
+      width: 100%;
+      box-sizing: border-box;
     }
     code {
       white-space: pre;
@@ -163,7 +212,39 @@ export const DOCS_HTML = String.raw`
         grid-template-columns: 1fr;
       }
       .sidebar {
-        position: static;
+        display: none;
+      }
+      .drawer-toggle {
+        display: inline-flex;
+      }
+    }
+    @media (max-width: 640px) {
+      body {
+        padding: 24px 14px 60px;
+      }
+      .doc-section {
+        padding: 14px;
+        border-radius: 12px;
+      }
+      .search {
+        font-size: 14px;
+        width: 100%;
+        max-width: 100%;
+      }
+      .nav-list {
+        max-height: none;
+        width: 100%;
+      }
+      .nav-list a {
+        font-size: 12px;
+        width: 100%;
+      }
+      pre {
+        padding: 10px;
+        font-size: 12px;
+        white-space: pre-wrap;
+        overflow-x: visible;
+        word-break: break-word;
       }
     }
   </style>
@@ -176,7 +257,10 @@ export const DOCS_HTML = String.raw`
           <h1>milieu docs</h1>
           <p>Command reference generated from clap help output.</p>
         </div>
-        <a class="back-link" href="/">← Back to main</a>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <a class="back-link" href="/">← Back to main</a>
+          <button class="drawer-toggle" type="button" aria-expanded="false" aria-controls="doc-drawer">Sections</button>
+        </div>
       </div>
     </header>
     <div class="layout">
@@ -557,11 +641,41 @@ example: milieu sessions</code></pre>
   
       </main>
     </div>
+    <div class="drawer-backdrop" data-drawer-backdrop></div>
+    <aside class="drawer-panel" id="doc-drawer" aria-label="Sections drawer">
+      <h3>Sections</h3>
+      <input class="search" type="search" placeholder="Search sections..." aria-label="Search sections" />
+      <ul class="nav-list">
+        <li><a href="#features" data-section="features">Features</a></li>
+<li><a href="#overview" data-section="overview">Overview</a></li>
+<li><a href="#register" data-section="register">register</a></li>
+<li><a href="#login" data-section="login">login</a></li>
+<li><a href="#logout" data-section="logout">logout</a></li>
+<li><a href="#init" data-section="init">init</a></li>
+<li><a href="#clone" data-section="clone">clone</a></li>
+<li><a href="#repos" data-section="repos">repos</a></li>
+<li><a href="#branch" data-section="branch">branch</a></li>
+<li><a href="#add" data-section="add">add</a></li>
+<li><a href="#remove" data-section="remove">remove</a></li>
+<li><a href="#push" data-section="push">push</a></li>
+<li><a href="#pull" data-section="pull">pull</a></li>
+<li><a href="#status" data-section="status">status</a></li>
+<li><a href="#changes" data-section="changes">changes</a></li>
+<li><a href="#log" data-section="log">log</a></li>
+<li><a href="#checkout" data-section="checkout">checkout</a></li>
+<li><a href="#doctor" data-section="doctor">doctor</a></li>
+<li><a href="#phrase" data-section="phrase">phrase</a></li>
+<li><a href="#sessions" data-section="sessions">sessions</a></li>
+      </ul>
+    </aside>
   </div>
   <script>
-    const input = document.querySelector(".search");
+    const inputs = Array.from(document.querySelectorAll(".search"));
     const navLinks = Array.from(document.querySelectorAll(".nav-list a"));
     const sections = Array.from(document.querySelectorAll(".doc-section"));
+    const drawer = document.querySelector(".drawer-panel");
+    const backdrop = document.querySelector("[data-drawer-backdrop]");
+    const toggle = document.querySelector(".drawer-toggle");
 
     function filterSections(query) {
       const q = query.trim().toLowerCase();
@@ -581,9 +695,30 @@ example: milieu sessions</code></pre>
       });
     }
 
-    input?.addEventListener("input", (event) => {
-      filterSections(event.target.value);
+    inputs.forEach((input) => {
+      input.addEventListener("input", (event) => {
+        filterSections(event.target.value);
+      });
     });
+
+    function closeDrawer() {
+      drawer?.classList.remove("open");
+      backdrop?.classList.remove("show");
+      toggle?.setAttribute("aria-expanded", "false");
+    }
+
+    toggle?.addEventListener("click", () => {
+      const isOpen = drawer?.classList.toggle("open");
+      if (isOpen) {
+        backdrop?.classList.add("show");
+      } else {
+        backdrop?.classList.remove("show");
+      }
+      toggle?.setAttribute("aria-expanded", isOpen ? "true" : "false");
+    });
+
+    backdrop?.addEventListener("click", closeDrawer);
+    navLinks.forEach((link) => link.addEventListener("click", closeDrawer));
 
     const observer = new IntersectionObserver(
       (entries) => {

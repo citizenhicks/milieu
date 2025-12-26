@@ -98,6 +98,7 @@ function serveLanding(): Response {
       color: var(--text);
       min-height: 100vh;
       padding: 32px 20px 80px;
+      overflow-x: hidden;
     }
     a { color: var(--blue); text-decoration: none; }
     a:hover { text-decoration: underline; }
@@ -246,10 +247,12 @@ function serveLanding(): Response {
       max-width: 820px;
     }
     .demo-video {
-      width: min(100%, 760px);
+      width: 100%;
+      max-width: 100%;
       border-radius: 12px;
       border: 1px solid var(--surface-1);
       background: var(--crust);
+      display: block;
     }
     .logo-title {
       display: inline-flex;
@@ -383,7 +386,9 @@ function serveLanding(): Response {
 
     <section class="section demo-section">
       <h2>Demo</h2>
-        <video class="card" src="/demo.mp4" autoplay loop muted playsinline controls></video>
+      <div class="card">
+        <video class="demo-video" src="/demo.mp4" autoplay loop muted playsinline controls></video>
+      </div>
     </section>
 
     <section class="section install">
