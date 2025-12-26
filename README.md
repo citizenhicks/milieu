@@ -59,7 +59,8 @@ sequenceDiagram
   rect rgba(203, 166, 247, 0.08)
   note over U,C: User onboarding
   U->>C: login / init / clone
-  C->>K: load or generate user keypair (X25519)
+  C->>C: derive UMK from recovery phrase
+  C->>C: derive user keypair from UMK (X25519)
   C->>S: PUT /v1/users/me/key (public key)
   S->>D: store user_keys
   end
@@ -103,6 +104,10 @@ sequenceDiagram
   C->>C: decrypt file with repo key
   end
 ```
+
+## Recovery phrase collision risk
+
+Milieu generates a 12-word BIP39 recovery phrase from 128 bits of entropy. That means the chance of two users ever generating the same phrase is about 1 in 2^128 (~3.4e38). In practice, collisions are astronomically unlikely and are not a realistic risk compared to account compromise or device loss.
 
 ## Server config (local)
 

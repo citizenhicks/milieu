@@ -491,7 +491,8 @@ sequenceDiagram
   rect rgba(203, 166, 247, 0.08)
   note over U,C: User onboarding
   U->>C: login / init / clone
-  C->>K: load or generate user keypair (X25519)
+  C->>C: derive UMK from recovery phrase
+  C->>C: derive user keypair from UMK (X25519)
   C->>S: PUT /v1/users/me/key (public key)
   S->>D: store user_keys
   end
@@ -535,6 +536,9 @@ sequenceDiagram
   C->>C: decrypt file with repo key
   end
       </pre>
+      <div class="notice">
+        <strong>Recovery phrase collision risk:</strong> phrases are generated from 128 bits of entropy (12‑word BIP39), so the chance of two users ever getting the same phrase is about 1 in 2^128 (~3.4e38). Collisions are astronomically unlikely.
+      </div>
     </section>
 
     <section class="section">

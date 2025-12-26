@@ -13,6 +13,7 @@ use x25519_dalek::{PublicKey, StaticSecret};
 pub const UMK_LEN: usize = 32;
 const REPO_KEY_AAD: &[u8] = b"milieu:repo-key:v1";
 const REPO_KEY_WRAP_INFO: &[u8] = b"milieu:repo-key-wrap";
+const USER_KEYPAIR_INFO: &[u8] = b"milieu:user-keypair:v1";
 
 #[derive(Debug, Clone)]
 pub struct KeyPair {
@@ -66,6 +67,19 @@ pub fn generate_umk() -> [u8; UMK_LEN] {
 
 pub fn generate_keypair() -> Result<KeyPair> {
     let secret = StaticSecret::random_from_rng(OsRng);
+    let public = PublicKey::from(&secret);
+    Ok(KeyPair {
+        private_key_b64: B64.encode(secret.to_bytes()),
+        public_key_b64: B64.encode(public.to_bytes()),
+    })
+}
+
+pub fn derive_keypair_from_umk(umk: &[u8; UMK_LEN]) -> Result<KeyPair> {
+    let hk = Hkdf::<Sha256>::new(None, umk);
+    let mut seed = [0u8; 32];
+    hk.expand(USER_KEYPAIR_INFO, &mut seed)
+        .map_err(|_| MilieuError::Crypto("hkdf expand failed".to_string()))?;
+    let secret = StaticSecret::from(seed);
     let public = PublicKey::from(&secret);
     Ok(KeyPair {
         private_key_b64: B64.encode(secret.to_bytes()),

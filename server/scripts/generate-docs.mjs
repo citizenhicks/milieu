@@ -91,6 +91,16 @@ const sections = [
     </section>
   `,
   },
+  {
+    id: "recovery-phrase-collision-risk",
+    title: "Recovery phrase collision risk",
+    html: `
+    <section class="doc-section" id="recovery-phrase-collision-risk">
+      <h2>Recovery phrase collision risk</h2>
+      <p>Milieu uses the standard 12‑word BIP39 recovery phrase generation, which comes from 128 bits of entropy. The chance of two users ever generating the same phrase is about 1 in 2^128 (~3.4e38), so collisions are astronomically unlikely in practice.</p>
+    </section>
+  `,
+  },
   ...docSections,
 ];
 

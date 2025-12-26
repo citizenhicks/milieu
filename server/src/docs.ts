@@ -272,6 +272,7 @@ export const DOCS_HTML = String.raw`
         <input class="search" type="search" placeholder="Search sections..." aria-label="Search sections" />
         <ul class="nav-list">
           <li><a href="#features" data-section="features">Features</a></li>
+<li><a href="#recovery-phrase-collision-risk" data-section="recovery-phrase-collision-risk">Recovery phrase collision risk</a></li>
 <li><a href="#overview" data-section="overview">Overview</a></li>
 <li><a href="#register" data-section="register">register</a></li>
 <li><a href="#login" data-section="login">login</a></li>
@@ -307,6 +308,12 @@ export const DOCS_HTML = String.raw`
 <li>Session management and device tracking</li>
 <li>Self-hostable Cloudflare Worker + D1 API</li>
       </ul>
+    </section>
+  
+
+    <section class="doc-section" id="recovery-phrase-collision-risk">
+      <h2>Recovery phrase collision risk</h2>
+      <p>Milieu uses the standard 12‑word BIP39 recovery phrase generation, which comes from 128 bits of entropy. The chance of two users ever generating the same phrase is about 1 in 2^128 (~3.4e38), so collisions are astronomically unlikely in practice.</p>
     </section>
   
 
@@ -651,6 +658,7 @@ example: milieu sessions</code></pre>
       <input class="search" type="search" placeholder="Search sections..." aria-label="Search sections" />
       <ul class="nav-list">
         <li><a href="#features" data-section="features">Features</a></li>
+<li><a href="#recovery-phrase-collision-risk" data-section="recovery-phrase-collision-risk">Recovery phrase collision risk</a></li>
 <li><a href="#overview" data-section="overview">Overview</a></li>
 <li><a href="#register" data-section="register">register</a></li>
 <li><a href="#login" data-section="login">login</a></li>
