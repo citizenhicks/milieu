@@ -4,6 +4,7 @@ use crate::commands::{prompt, prompt_password};
 use crate::config::Config;
 use crate::crypto::{decrypt_umk_blob, derive_key, encrypt_umk_blob, generate_umk, KdfParams};
 use crate::error::Result;
+use crate::keys;
 use crate::style;
 use bip39::{Language, Mnemonic};
 use rand_core::{OsRng, RngCore};
@@ -35,6 +36,7 @@ pub async fn run(profile: &str) -> Result<()> {
     auth::store_email(profile, &email)?;
 
     let token_client = ApiClient::new(base_url, Some(login.access_token))?;
+    let _ = keys::ensure_user_keypair(profile, &token_client).await?;
     let umk = match token_client.get_umk().await? {
         None => {
             let umk = generate_umk();

@@ -2,6 +2,7 @@ use crate::api::ApiClient;
 use crate::auth;
 use crate::config::Config;
 use crate::error::{MilieuError, Result};
+use crate::keys;
 use crate::manifest::{Manifest, Remote};
 use crate::repo::{folder_name, manifest_path, milieu_dir};
 use crate::style;
@@ -32,6 +33,9 @@ pub async fn run(profile: &str, repo_name: Option<String>) -> Result<()> {
     fs::create_dir_all(&milieu_dir)?;
 
     let manifest = Manifest { remote: Some(Remote { base_url: None }), ..manifest };
+
+    let _ = keys::ensure_user_keypair(profile, &client).await?;
+    let _ = keys::get_or_fetch_repo_key(profile, &client, &manifest.repo_id).await?;
 
     crate::commands::print_scope_repo(&manifest);
     manifest.save(&manifest_path)?;

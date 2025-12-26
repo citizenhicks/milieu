@@ -3,6 +3,7 @@ mod auth;
 mod commands;
 mod config;
 mod crypto;
+mod keys;
 mod error;
 mod keychain;
 mod manifest;
@@ -185,7 +186,7 @@ enum ReposCommand {
     List,
     #[command(
         about = "manage repo sharing and invites",
-        after_help = "examples:\n  milieu repos manage list --repo my-app\n  milieu repos manage add --repo my-app --email someone@acme.com --access write\n  milieu repos manage invites"
+        after_help = "examples:\n  milieu repos manage list --repo my-app\n  milieu repos manage add --repo my-app --email someone@acme.com --access write\n  milieu repos manage invites\n  milieu repos manage share --repo my-app\n  milieu repos manage delete --repo my-app"
     )]
     Manage {
         #[command(subcommand)]
@@ -231,6 +232,22 @@ enum ManageCommand {
     Accept { invite_id: String },
     #[command(about = "reject an invite by id", after_help = "example: milieu repos manage reject inv_123")]
     Reject { invite_id: String },
+    #[command(
+        about = "share repo key with active collaborators",
+        after_help = "example: milieu repos manage share --repo my-app"
+    )]
+    Share {
+        #[arg(long)]
+        repo: String,
+    },
+    #[command(
+        about = "delete a remote repo and all ciphertext",
+        after_help = "example: milieu repos manage delete --repo my-app"
+    )]
+    Delete {
+        #[arg(long)]
+        repo: String,
+    },
 }
 
 #[derive(Subcommand, Debug)]
@@ -286,6 +303,12 @@ async fn run() -> Result<()> {
                 }
                 ManageCommand::Reject { invite_id } => {
                     commands::repos::manage_reject(&cli.profile, &invite_id).await?
+                }
+                ManageCommand::Share { repo } => {
+                    commands::repos::manage_share(&cli.profile, &repo).await?
+                }
+                ManageCommand::Delete { repo } => {
+                    commands::repos::manage_delete(&cli.profile, &repo).await?
                 }
             },
         },

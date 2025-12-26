@@ -1,8 +1,9 @@
 use crate::api::ApiClient;
 use crate::auth;
 use crate::config::Config;
-use crate::crypto::{aad_for, decode_key, decrypt_bytes};
+use crate::crypto::{aad_for, decrypt_bytes};
 use crate::error::{MilieuError, Result};
+use crate::keys;
 use crate::manifest::Manifest;
 use crate::repo::manifest_path;
 use crate::style;
@@ -37,17 +38,16 @@ pub async fn run(
     }
 
     let token = auth::load_auth_token(profile)?;
-    let umk_b64 = auth::load_umk(profile)?;
-    let umk = decode_key(&umk_b64)?;
-
     let client = ApiClient::new(base_url, Some(token))?;
+    let repo_key = keys::get_or_fetch_repo_key(profile, &client, &manifest.repo_id).await?;
 
     let remote = client
         .get_version(&manifest.repo_id, &branch_name, &path, version)
         .await?;
 
-    let aad = aad_for(1, &manifest.repo_id, &branch_name, &path, entry.tag());
-    let plaintext = decrypt_bytes(&umk, &aad, &remote.nonce, &remote.ciphertext)?;
+    let schema_version = remote.schema_version;
+    let aad = aad_for(schema_version, &manifest.repo_id, &branch_name, &path, entry.tag());
+    let plaintext = decrypt_bytes(&repo_key, &aad, &remote.nonce, &remote.ciphertext)?;
     write_secure(&path, &plaintext)?;
 
     println!(

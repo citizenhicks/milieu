@@ -308,6 +308,13 @@ function serveLanding(): Response {
       color: var(--subtext);
       line-height: 1.6;
     }
+    .mermaid {
+      background: rgba(17,17,27,0.7);
+      border: 1px solid var(--surface-1);
+      border-radius: 12px;
+      padding: 16px;
+      overflow-x: auto;
+    }
     .footer {
       text-align: center;
       color: var(--subtext);
@@ -470,6 +477,67 @@ brew install milieu</code></pre>
     </section>
 
     <section class="section">
+      <h2>Encryption flow</h2>
+      <p>Milieu uses a per‑repo shared key wrapped for each collaborator with X25519 + HKDF. Files are encrypted with XChaCha20‑Poly1305 and bound to repo/branch/path via AAD.</p>
+      <pre class="mermaid">
+sequenceDiagram
+  autonumber
+  participant U as User
+  participant C as Milieu CLI
+  participant K as Keychain
+  participant S as API
+  participant D as D1
+
+  rect rgba(203, 166, 247, 0.08)
+  note over U,C: User onboarding
+  U->>C: login / init / clone
+  C->>K: load or generate user keypair (X25519)
+  C->>S: PUT /v1/users/me/key (public key)
+  S->>D: store user_keys
+  end
+
+  rect rgba(166, 227, 161, 0.08)
+  note over U,C: Repo bootstrap
+  U->>C: init repo
+  C->>C: generate repo key (32 bytes)
+  C->>C: wrap repo key for owner (X25519 + HKDF)
+  C->>S: PUT /v1/repos/:id/key (wrapped_key)
+  S->>D: store repo_keys (per user)
+  C->>K: store repo key locally
+  end
+
+  rect rgba(249, 226, 175, 0.08)
+  note over U,C: Collaboration
+  U->>C: invite collaborator
+  C->>S: POST /v1/repos/:id/access
+  S->>D: create invite
+  U->>C: share repo key
+  C->>S: GET /v1/repos/:id/access (public keys)
+  C->>C: wrap repo key for each collaborator
+  C->>S: PUT /v1/repos/:id/key (wrapped_key, email)
+  S->>D: store repo_keys
+  end
+
+  rect rgba(137, 180, 250, 0.08)
+  note over U,C: Write path
+  U->>C: push .env
+  C->>C: aad = v2|repo|branch|path|tag
+  C->>C: encrypt file with repo key (XChaCha20‑Poly1305)
+  C->>S: POST /v1/repos/:id/branches/:b/objects
+  S->>D: store ciphertext only
+  end
+
+  rect rgba(180, 190, 254, 0.08)
+  note over U,C: Read path
+  U->>C: pull .env
+  C->>S: GET /v1/repos/:id/key (wrapped_key)
+  C->>C: unwrap with private key (X25519 + HKDF)
+  C->>C: decrypt file with repo key
+  end
+      </pre>
+    </section>
+
+    <section class="section">
       <h2>Contribution</h2>
       <p>Pull requests welcome. If you want to work on CLI features, server behavior, or docs, open an issue first so we can align on scope.</p>
       <ul class="list">
@@ -484,6 +552,10 @@ brew install milieu</code></pre>
         <a href="https://x.com/citizenhicks">x.com/citizenhicks</a>
       </div>
   </div>
+  <script type="module">
+    import mermaid from "https://unpkg.com/mermaid@10/dist/mermaid.esm.min.mjs";
+    mermaid.initialize({ startOnLoad: true, theme: "dark" });
+  </script>
 </body>
 </html>`;
 

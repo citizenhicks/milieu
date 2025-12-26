@@ -52,6 +52,7 @@ const features = [
   "History + checkout for per-file rollback",
   "Recovery phrase + keychain-backed UMK",
   "Team access controls (read/write roles, invites)",
+  "Shared repo keys for collaborators (owner runs `milieu repos manage share`)",
   "Session management and device tracking",
   "Self-hostable Cloudflare Worker + D1 API",
 ];
@@ -83,7 +84,9 @@ const sections = [
     <section class="doc-section" id="features">
       <h2>Features</h2>
       <ul class="feature-list">
-        ${features.map((item) => `<li>${item}</li>`).join("\n")}
+        ${features
+          .map((item) => `<li>${escapeHtml(item)}</li>`)
+          .join("\n")}
       </ul>
     </section>
   `,

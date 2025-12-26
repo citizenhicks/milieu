@@ -76,6 +76,8 @@ type RepoAccessEntry = {
   status: "active" | "pending";
   invited_by?: string;
   created_at: string;
+  public_key?: string;
+  key_algorithm?: string;
 };
 
 type InviteInfo = {
@@ -85,6 +87,29 @@ type InviteInfo = {
   role: string;
   invited_by: string;
   created_at: string;
+};
+
+type UserKeyRequest = {
+  public_key: string;
+  algorithm: string;
+};
+
+type UserKeyResponse = UserKeyRequest & {
+  created_at: string;
+  updated_at: string;
+};
+
+type RepoKeyRequest = {
+  wrapped_key: string;
+  algorithm: string;
+  email?: string;
+};
+
+type RepoKeyResponse = {
+  wrapped_key: string;
+  algorithm: string;
+  created_at: string;
+  updated_at: string;
 };
 
 const encoder = new TextEncoder();
@@ -122,6 +147,17 @@ export async function handleApiRequest(
       });
     }
 
+    const repoDeleteMatch = pathname.match(/^\/v1\/repos\/([^/]+)$/);
+    if (repoDeleteMatch) {
+      const repoId = repoDeleteMatch[1];
+      return withAuth(request, env, async (userId) => {
+        if (request.method === "DELETE") {
+          return handleDeleteRepo(env, userId, repoId);
+        }
+        return json({ error: "method_not_allowed" }, 405);
+      });
+    }
+
     const repoManifestMatch = pathname.match(
       /^\/v1\/repos\/([^/]+)\/manifest$/,
     );
@@ -145,6 +181,18 @@ export async function handleApiRequest(
         }
         if (request.method === "PUT") {
           return handlePutUmk(request, userId, env);
+        }
+        return json({ error: "method_not_allowed" }, 405);
+      });
+    }
+
+    if (pathname === "/v1/users/me/key") {
+      return withAuth(request, env, async (userId) => {
+        if (request.method === "GET") {
+          return handleGetUserKey(userId, env);
+        }
+        if (request.method === "PUT") {
+          return handlePutUserKey(request, userId, env);
         }
         return json({ error: "method_not_allowed" }, 405);
       });
@@ -241,6 +289,20 @@ export async function handleApiRequest(
           const email = url.searchParams.get("email");
           if (!email) return json({ error: "missing_email" }, 400);
           return handleRevokeAccess(env, userId, repoId, email);
+        }
+        return json({ error: "method_not_allowed" }, 405);
+      });
+    }
+
+    const repoKeyMatch = pathname.match(/^\/v1\/repos\/([^/]+)\/key$/);
+    if (repoKeyMatch) {
+      const repoId = repoKeyMatch[1];
+      return withAuth(request, env, async (userId) => {
+        if (request.method === "GET") {
+          return handleGetRepoKey(env, userId, repoId);
+        }
+        if (request.method === "PUT") {
+          return handlePutRepoKey(request, env, userId, repoId);
         }
         return json({ error: "method_not_allowed" }, 405);
       });
@@ -626,6 +688,36 @@ async function handleGetRepo(
   return json({ repo_id: row.id, name: row.name }, 200);
 }
 
+async function handleDeleteRepo(
+  env: Env,
+  userId: string,
+  repoId: string,
+): Promise<Response> {
+  const repo = await ensureRepoOwned(env, userId, repoId);
+  if (!repo) return json({ error: "repo_not_found" }, 404);
+
+  await env.DB.prepare("DELETE FROM env_objects WHERE repo_id = ?")
+    .bind(repoId)
+    .run();
+  await env.DB.prepare("DELETE FROM repo_keys WHERE repo_id = ?")
+    .bind(repoId)
+    .run();
+  await env.DB.prepare("DELETE FROM repo_access WHERE repo_id = ?")
+    .bind(repoId)
+    .run();
+  await env.DB.prepare("DELETE FROM repo_invites WHERE repo_id = ?")
+    .bind(repoId)
+    .run();
+  await env.DB.prepare("DELETE FROM repo_links WHERE repo_id = ?")
+    .bind(repoId)
+    .run();
+  await env.DB.prepare("DELETE FROM repos WHERE id = ?")
+    .bind(repoId)
+    .run();
+
+  return json({ ok: true }, 200);
+}
+
 async function handleGetManifest(
   env: Env,
   userId: string,
@@ -720,6 +812,139 @@ async function handlePutUmk(
       body.encrypted_umk,
       JSON.stringify(body.kdf_params),
       body.version,
+      now,
+    )
+    .run();
+
+  return json({ ok: true }, 200);
+}
+
+async function handleGetUserKey(
+  userId: string,
+  env: Env,
+): Promise<Response> {
+  const row = await env.DB.prepare(
+    "SELECT public_key, algorithm, created_at, updated_at FROM user_keys WHERE user_id = ?",
+  )
+    .bind(userId)
+    .first<Record<string, string>>();
+
+  if (!row) {
+    return json({ error: "not_found" }, 404);
+  }
+
+  const response: UserKeyResponse = {
+    public_key: row.public_key,
+    algorithm: row.algorithm,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+  return json(response, 200);
+}
+
+async function handlePutUserKey(
+  request: Request,
+  userId: string,
+  env: Env,
+): Promise<Response> {
+  const body = await request.json<UserKeyRequest>().catch(() => null);
+  if (!body || !body.public_key || !body.algorithm) {
+    return json({ error: "invalid_request" }, 400);
+  }
+
+  const now = new Date().toISOString();
+  await env.DB.prepare(
+    `INSERT INTO user_keys (user_id, public_key, algorithm, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(user_id) DO UPDATE SET
+       public_key = excluded.public_key,
+       algorithm = excluded.algorithm,
+       updated_at = excluded.updated_at`,
+  )
+    .bind(userId, body.public_key, body.algorithm, now, now)
+    .run();
+
+  return json({ ok: true }, 200);
+}
+
+async function handleGetRepoKey(
+  env: Env,
+  userId: string,
+  repoId: string,
+): Promise<Response> {
+  const repo = await ensureRepoAccess(env, userId, repoId, "read");
+  if (!repo) {
+    return json({ error: "repo_not_found" }, 404);
+  }
+
+  const row = await env.DB.prepare(
+    `SELECT wrapped_key, algorithm, created_at, updated_at
+     FROM repo_keys
+     WHERE repo_id = ? AND user_id = ?`,
+  )
+    .bind(repoId, userId)
+    .first<Record<string, string>>();
+
+  if (!row) {
+    return json({ error: "not_found" }, 404);
+  }
+
+  const response: RepoKeyResponse = {
+    wrapped_key: row.wrapped_key,
+    algorithm: row.algorithm,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+  return json(response, 200);
+}
+
+async function handlePutRepoKey(
+  request: Request,
+  env: Env,
+  userId: string,
+  repoId: string,
+): Promise<Response> {
+  const body = await request.json<RepoKeyRequest>().catch(() => null);
+  if (!body || !body.wrapped_key || !body.algorithm) {
+    return json({ error: "invalid_request" }, 400);
+  }
+
+  const requesterEmail = await getUserEmail(env, userId);
+  const targetEmail = normalizeEmail(body.email) ?? requesterEmail;
+  if (!targetEmail) return json({ error: "invalid_email" }, 400);
+
+  const owned = await ensureRepoOwned(env, userId, repoId);
+  if (!owned) return json({ error: "repo_not_found" }, 404);
+
+  const userRow = await env.DB.prepare("SELECT id FROM users WHERE email = ?")
+    .bind(targetEmail)
+    .first<Record<string, string>>();
+  if (!userRow) return json({ error: "user_not_found" }, 404);
+
+  const now = new Date().toISOString();
+  await env.DB.prepare(
+    `INSERT INTO repo_keys (repo_id, user_id, wrapped_key, algorithm, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?)
+     ON CONFLICT(repo_id, user_id) DO UPDATE SET
+       wrapped_key = excluded.wrapped_key,
+       algorithm = excluded.algorithm,
+       updated_at = excluded.updated_at`,
+  )
+    .bind(repoId, userRow.id, body.wrapped_key, body.algorithm, now, now)
+    .run();
+
+  await env.DB.prepare(
+    `INSERT INTO repo_key_events (id, repo_id, requester_user_id, requester_email, target_user_id, target_email, action, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+  )
+    .bind(
+      `rke_${crypto.randomUUID()}`,
+      repoId,
+      userId,
+      requesterEmail ?? "",
+      userRow.id,
+      targetEmail,
+      "upsert",
       now,
     )
     .run();
@@ -974,9 +1199,14 @@ async function handleGetAccess(
   if (!repo) return json({ error: "repo_not_found" }, 404);
 
   const activeRows = await env.DB.prepare(
-    `SELECT users.email as email, repo_access.role as role, repo_access.created_at as created_at
+    `SELECT users.email as email,
+            repo_access.role as role,
+            repo_access.created_at as created_at,
+            user_keys.public_key as public_key,
+            user_keys.algorithm as key_algorithm
      FROM repo_access
      JOIN users ON users.id = repo_access.user_id
+     LEFT JOIN user_keys ON user_keys.user_id = users.id
      WHERE repo_access.repo_id = ?
      ORDER BY users.email ASC`,
   )
@@ -1000,6 +1230,8 @@ async function handleGetAccess(
       role: row.role,
       status: "active" as const,
       created_at: row.created_at,
+      public_key: row.public_key ?? undefined,
+      key_algorithm: row.key_algorithm ?? undefined,
     })),
     ...pendingRows.results.map((row) => ({
       email: row.email,

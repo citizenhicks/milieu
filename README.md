@@ -17,6 +17,7 @@ Milieu is a small CLI that syncs encrypted dotenv files across machines without 
 - Team access controls (read/write roles, invites)
 - Session management + device tracking
 - Self-hostable Cloudflare Worker + D1 API
+- Shared repo keys for collaborators (owner runs `milieu repos manage share --repo <name>`)
 
 This repo contains:
 
@@ -34,6 +35,73 @@ Homebrew tap (macOS + Linux):
 ```
 brew tap citizenhicks/milieu
 brew install milieu
+```
+
+## Collaboration & repo keys
+
+Milieu now uses a per-repo shared key for encryption. The owner must share the repo key with collaborators:
+
+```
+milieu repos manage share --repo <name>
+```
+
+## Encryption flow
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant U as User
+  participant C as Milieu CLI
+  participant K as Keychain
+  participant S as API
+  participant D as D1
+
+  rect rgba(203, 166, 247, 0.08)
+  note over U,C: User onboarding
+  U->>C: login / init / clone
+  C->>K: load or generate user keypair (X25519)
+  C->>S: PUT /v1/users/me/key (public key)
+  S->>D: store user_keys
+  end
+
+  rect rgba(166, 227, 161, 0.08)
+  note over U,C: Repo bootstrap
+  U->>C: init repo
+  C->>C: generate repo key (32 bytes)
+  C->>C: wrap repo key for owner (X25519 + HKDF)
+  C->>S: PUT /v1/repos/:id/key (wrapped_key)
+  S->>D: store repo_keys (per user)
+  C->>K: store repo key locally
+  end
+
+  rect rgba(249, 226, 175, 0.08)
+  note over U,C: Collaboration
+  U->>C: invite collaborator
+  C->>S: POST /v1/repos/:id/access
+  S->>D: create invite
+  U->>C: share repo key
+  C->>S: GET /v1/repos/:id/access (public keys)
+  C->>C: wrap repo key for each collaborator
+  C->>S: PUT /v1/repos/:id/key (wrapped_key, email)
+  S->>D: store repo_keys
+  end
+
+  rect rgba(137, 180, 250, 0.08)
+  note over U,C: Write path
+  U->>C: push .env
+  C->>C: aad = v2|repo|branch|path|tag
+  C->>C: encrypt file with repo key (XChaCha20‑Poly1305)
+  C->>S: POST /v1/repos/:id/branches/:b/objects
+  S->>D: store ciphertext only
+  end
+
+  rect rgba(180, 190, 254, 0.08)
+  note over U,C: Read path
+  U->>C: pull .env
+  C->>S: GET /v1/repos/:id/key (wrapped_key)
+  C->>C: unwrap with private key (X25519 + HKDF)
+  C->>C: decrypt file with repo key
+  end
 ```
 
 ## Server config (local)

@@ -303,6 +303,7 @@ export const DOCS_HTML = String.raw`
 <li>History + checkout for per-file rollback</li>
 <li>Recovery phrase + keychain-backed UMK</li>
 <li>Team access controls (read/write roles, invites)</li>
+<li>Shared repo keys for collaborators (owner runs &#96;milieu repos manage share&#96;)</li>
 <li>Session management and device tracking</li>
 <li>Self-hostable Cloudflare Worker + D1 API</li>
       </ul>

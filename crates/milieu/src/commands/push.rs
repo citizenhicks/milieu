@@ -1,8 +1,9 @@
 use crate::api::{ApiClient, ObjectRequest};
 use crate::auth;
 use crate::config::Config;
-use crate::crypto::{aad_for, decode_key, decrypt_bytes, encrypt_bytes};
+use crate::crypto::{aad_for, decrypt_bytes, encrypt_bytes};
 use crate::error::{MilieuError, Result};
+use crate::keys;
 use crate::manifest::Manifest;
 use crate::repo::{manifest_path, validate_env_path};
 use crate::style;
@@ -34,10 +35,8 @@ pub async fn run(profile: &str, branch_override: Option<String>) -> Result<()> {
     }
 
     let token = auth::load_auth_token(profile)?;
-    let umk_b64 = auth::load_umk(profile)?;
-    let umk = decode_key(&umk_b64)?;
-
     let client = ApiClient::new(base_url, Some(token))?;
+    let repo_key = keys::get_or_fetch_repo_key(profile, &client, &manifest.repo_id).await?;
 
     let mut conflicts = Vec::new();
     for entry in &branch_snapshot.files {
@@ -53,14 +52,9 @@ pub async fn run(profile: &str, branch_override: Option<String>) -> Result<()> {
             .await?;
 
         if let Some(remote_obj) = &remote {
-            let aad = aad_for(1, &repo_id, &branch_snapshot.name, path, entry.tag());
-            let plaintext = decrypt_bytes(&umk, &aad, &remote_obj.nonce, &remote_obj.ciphertext)
-                .map_err(|_| {
-                    MilieuError::CommandFailed(format!(
-                        "failed to decrypt remote for {}; run `milieu pull`",
-                        path
-                    ))
-                })?;
+            let schema_version = remote_obj.schema_version;
+            let aad = aad_for(schema_version, &repo_id, &branch_snapshot.name, path, entry.tag());
+            let plaintext = decrypt_bytes(&repo_key, &aad, &remote_obj.nonce, &remote_obj.ciphertext)?;
             let remote_hash = blake3::hash(&plaintext);
             let base_hash = entry
                 .last_synced_hash
@@ -107,8 +101,9 @@ pub async fn run(profile: &str, branch_override: Option<String>) -> Result<()> {
 
         let (adds, dels, same_as_remote, remote_hash, remote_version) = match remote {
             Some(ref obj) => {
-                let aad = aad_for(1, &repo_id, &branch_label, &path, entry.tag());
-                let plaintext = decrypt_bytes(&umk, &aad, &obj.nonce, &obj.ciphertext)?;
+                let schema_version = obj.schema_version;
+                let aad = aad_for(schema_version, &repo_id, &branch_label, &path, entry.tag());
+                let plaintext = decrypt_bytes(&repo_key, &aad, &obj.nonce, &obj.ciphertext)?;
                 let remote_hash = blake3::hash(&plaintext);
                 let remote_text = String::from_utf8_lossy(&plaintext);
                 let local_text = String::from_utf8_lossy(&data);
@@ -132,8 +127,9 @@ pub async fn run(profile: &str, branch_override: Option<String>) -> Result<()> {
             continue;
         }
 
-        let aad = aad_for(1, &repo_id, &branch_label, &path, entry.tag());
-        let (nonce, ciphertext) = encrypt_bytes(&umk, &aad, &data)?;
+        let schema_version = 2;
+        let aad = aad_for(schema_version, &repo_id, &branch_label, &path, entry.tag());
+        let (nonce, ciphertext) = encrypt_bytes(&repo_key, &aad, &data)?;
         let ciphertext_hash = blake3::hash(ciphertext.as_bytes()).to_hex().to_string();
         let request = ObjectRequest {
             path: path.to_string(),
@@ -142,7 +138,7 @@ pub async fn run(profile: &str, branch_override: Option<String>) -> Result<()> {
             aad: B64.encode(aad),
             ciphertext_hash,
             created_at: chrono::Utc::now().to_rfc3339(),
-            schema_version: 1,
+            schema_version,
         };
         let response = client
             .post_object(&repo_id, &branch_label, &request)

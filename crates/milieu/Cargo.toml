@@ -69,4 +69,14 @@ features = ["std", "clock"]
 [dependencies.hostname]
 version = "0.4"
 
+[dependencies.x25519-dalek]
+version = "2"
+features = ["static_secrets"]
+
+[dependencies.hkdf]
+version = "0.12"
+
+[dependencies.sha2]
+version = "0.10"
+
 [dev-dependencies]

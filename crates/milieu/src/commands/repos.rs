@@ -2,6 +2,7 @@ use crate::api::{ApiClient, InviteInfo, RepoAccessEntry, RepoResponse};
 use crate::auth;
 use crate::config::Config;
 use crate::error::Result;
+use crate::keys;
 use crate::style;
 use atty::Stream;
 
@@ -139,6 +140,36 @@ pub async fn manage_remove(profile: &str, repo_name: &str, email: &str) -> Resul
     Ok(())
 }
 
+pub async fn manage_delete(profile: &str, repo_name: &str) -> Result<()> {
+    crate::commands::print_scope_user();
+    let (client, repo) = client_and_repo(profile, repo_name).await?;
+
+    let first = crate::commands::prompt(&format!(
+        "delete remote repo '{}' (this cannot be undone)? [y/N] ",
+        repo.name
+    ))?;
+    if first.to_lowercase().as_str() != "y" {
+        println!("{}", style::paint(style::SUBTEXT1, "aborted"));
+        return Ok(());
+    }
+
+    let confirm = crate::commands::prompt(&format!(
+        "type repo name '{}' to confirm delete: ",
+        repo.name
+    ))?;
+    if confirm.trim() != repo.name {
+        println!("{}", style::paint(style::SUBTEXT1, "confirmation did not match; aborted"));
+        return Ok(());
+    }
+
+    client.delete_repo(&repo.repo_id).await?;
+    println!(
+        "{}",
+        style::paint(style::PEACH, &format!("deleted remote repo '{}'", repo.name))
+    );
+    Ok(())
+}
+
 pub async fn manage_invites(profile: &str) -> Result<()> {
     crate::commands::print_scope_user();
     let client = client_only(profile).await?;
@@ -182,6 +213,67 @@ pub async fn manage_invites(profile: &str) -> Result<()> {
                 );
             }
         }
+    }
+    Ok(())
+}
+
+pub async fn manage_share(profile: &str, repo_name: &str) -> Result<()> {
+    crate::commands::print_scope_user();
+    let (client, repo) = client_and_repo(profile, repo_name).await?;
+    let _ = keys::ensure_user_keypair(profile, &client).await?;
+    let repo_key = keys::get_or_fetch_repo_key(profile, &client, &repo.repo_id).await?;
+
+    let entries = client.get_repo_access(&repo.repo_id).await?;
+    if entries.is_empty() {
+        println!("{}", style::paint(style::SUBTEXT1, "no collaborators yet"));
+        return Ok(());
+    }
+
+    let current_email = auth::load_email(profile)?.unwrap_or_default();
+    let mut shared = 0;
+    let mut missing = Vec::new();
+    for entry in entries {
+        if entry.status != "active" {
+            continue;
+        }
+        if entry.email == current_email {
+            continue;
+        }
+        match entry.public_key.as_deref() {
+            Some(public_key) => {
+                let wrapped = keys::wrap_repo_key_for_user(public_key, &repo_key).await?;
+                client
+                    .put_repo_key(
+                        &repo.repo_id,
+                        &wrapped,
+                        entry
+                            .key_algorithm
+                            .as_deref()
+                            .unwrap_or("x25519-hkdf-xchacha20poly1305"),
+                        Some(&entry.email),
+                    )
+                    .await?;
+                shared += 1;
+            }
+            None => {
+                missing.push(entry.email);
+            }
+        }
+    }
+
+    println!(
+        "{}",
+        style::paint(
+            style::GREEN,
+            &format!("shared repo key with {} collaborator(s)", shared)
+        )
+    );
+    if !missing.is_empty() {
+        let mut message = String::from("missing public keys:");
+        for email in missing {
+            message.push_str(&format!("\n  - {}", email));
+        }
+        println!("{}", style::paint(style::YELLOW, &message));
     }
     Ok(())
 }

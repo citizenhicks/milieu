@@ -1,8 +1,9 @@
 use crate::api::ApiClient;
 use crate::auth;
 use crate::config::Config;
-use crate::crypto::{aad_for, decode_key, decrypt_bytes};
+use crate::crypto::{aad_for, decrypt_bytes};
 use crate::error::{MilieuError, Result};
+use crate::keys;
 use crate::manifest::Manifest;
 use crate::repo::{manifest_path, validate_env_path};
 use crate::style;
@@ -29,10 +30,8 @@ pub async fn run(
     }
 
     let token = auth::load_auth_token(profile)?;
-    let umk_b64 = auth::load_umk(profile)?;
-    let umk = decode_key(&umk_b64)?;
-
     let client = ApiClient::new(base_url, Some(token))?;
+    let repo_key = keys::get_or_fetch_repo_key(profile, &client, &manifest.repo_id).await?;
 
     let entries: Vec<_> = match path {
         Some(target) => branch
@@ -67,8 +66,9 @@ pub async fn run(
 
         let remote_text = match remote_obj {
             Some(ref obj) => {
-                let aad = aad_for(1, &manifest.repo_id, &branch.name, file_path, entry.tag());
-                let plaintext = decrypt_bytes(&umk, &aad, &obj.nonce, &obj.ciphertext)?;
+                let schema_version = obj.schema_version;
+                let aad = aad_for(schema_version, &manifest.repo_id, &branch.name, file_path, entry.tag());
+                let plaintext = decrypt_bytes(&repo_key, &aad, &obj.nonce, &obj.ciphertext)?;
                 Some(String::from_utf8_lossy(&plaintext).to_string())
             }
             None => None,

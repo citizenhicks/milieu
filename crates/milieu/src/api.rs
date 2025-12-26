@@ -96,6 +96,8 @@ pub struct RepoAccessEntry {
     pub status: String,
     pub invited_by: Option<String>,
     pub created_at: String,
+    pub public_key: Option<String>,
+    pub key_algorithm: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -106,6 +108,22 @@ pub struct InviteInfo {
     pub role: String,
     pub invited_by: String,
     pub created_at: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UserKeyResponse {
+    pub public_key: String,
+    pub algorithm: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RepoKeyResponse {
+    pub wrapped_key: String,
+    pub algorithm: String,
+    pub created_at: String,
+    pub updated_at: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -450,6 +468,23 @@ impl ApiClient {
         Ok(())
     }
 
+    pub async fn delete_repo(&self, repo_id: &str) -> Result<()> {
+        let url = self.endpoint(&format!("/v1/repos/{}", repo_id));
+        let response = self
+            .client
+            .delete(url)
+            .header("Authorization", self.auth_header()?)
+            .send()
+            .await?;
+        if !response.status().is_success() {
+            return Err(MilieuError::CommandFailed(format!(
+                "delete repo failed: {}",
+                response.status()
+            )));
+        }
+        Ok(())
+    }
+
     pub async fn get_invites(&self) -> Result<Vec<InviteInfo>> {
         let url = self.endpoint("/v1/users/me/invites");
         let response = self
@@ -465,6 +500,93 @@ impl ApiClient {
             )));
         }
         Ok(response.json().await?)
+    }
+
+    pub async fn get_user_key(&self) -> Result<Option<UserKeyResponse>> {
+        let url = self.endpoint("/v1/users/me/key");
+        let response = self
+            .client
+            .get(url)
+            .header("Authorization", self.auth_header()?)
+            .send()
+            .await?;
+
+        if response.status() == StatusCode::NOT_FOUND {
+            return Ok(None);
+        }
+        if !response.status().is_success() {
+            return Err(MilieuError::CommandFailed(format!(
+                "get user key failed: {}",
+                response.status()
+            )));
+        }
+        Ok(Some(response.json().await?))
+    }
+
+    pub async fn put_user_key(&self, public_key: &str, algorithm: &str) -> Result<()> {
+        let url = self.endpoint("/v1/users/me/key");
+        let response = self
+            .client
+            .put(url)
+            .header("Authorization", self.auth_header()?)
+            .json(&serde_json::json!({ "public_key": public_key, "algorithm": algorithm }))
+            .send()
+            .await?;
+        if !response.status().is_success() {
+            return Err(MilieuError::CommandFailed(format!(
+                "put user key failed: {}",
+                response.status()
+            )));
+        }
+        Ok(())
+    }
+
+    pub async fn get_repo_key(&self, repo_id: &str) -> Result<Option<RepoKeyResponse>> {
+        let url = self.endpoint(&format!("/v1/repos/{}/key", repo_id));
+        let response = self
+            .client
+            .get(url)
+            .header("Authorization", self.auth_header()?)
+            .send()
+            .await?;
+        if response.status() == StatusCode::NOT_FOUND {
+            return Ok(None);
+        }
+        if !response.status().is_success() {
+            return Err(MilieuError::CommandFailed(format!(
+                "get repo key failed: {}",
+                response.status()
+            )));
+        }
+        Ok(Some(response.json().await?))
+    }
+
+    pub async fn put_repo_key(
+        &self,
+        repo_id: &str,
+        wrapped_key: &str,
+        algorithm: &str,
+        email: Option<&str>,
+    ) -> Result<()> {
+        let url = self.endpoint(&format!("/v1/repos/{}/key", repo_id));
+        let mut body = serde_json::json!({ "wrapped_key": wrapped_key, "algorithm": algorithm });
+        if let Some(value) = email {
+            body["email"] = serde_json::Value::String(value.to_string());
+        }
+        let response = self
+            .client
+            .put(url)
+            .header("Authorization", self.auth_header()?)
+            .json(&body)
+            .send()
+            .await?;
+        if !response.status().is_success() {
+            return Err(MilieuError::CommandFailed(format!(
+                "put repo key failed: {}",
+                response.status()
+            )));
+        }
+        Ok(())
     }
 
     pub async fn accept_invite(&self, invite_id: &str) -> Result<()> {

@@ -1,8 +1,9 @@
 use crate::api::ApiClient;
 use crate::auth;
 use crate::config::Config;
-use crate::crypto::{aad_for, decode_key, decrypt_bytes};
+use crate::crypto::{aad_for, decrypt_bytes};
 use crate::error::{MilieuError, Result};
+use crate::keys;
 use crate::manifest::{Branch, FileEntry, Manifest};
 use crate::repo::{manifest_path, validate_env_path};
 use crate::style;
@@ -27,10 +28,8 @@ pub async fn run(profile: &str, branch_override: Option<String>) -> Result<()> {
     }
 
     let token = auth::load_auth_token(profile)?;
-    let umk_b64 = auth::load_umk(profile)?;
-    let umk = decode_key(&umk_b64)?;
-
     let client = ApiClient::new(base_url, Some(token))?;
+    let repo_key = keys::get_or_fetch_repo_key(profile, &client, &manifest.repo_id).await?;
 
     if let Ok(remote_manifest) = client.get_manifest(&manifest.repo_id).await {
         manifest = merge_manifests(&manifest, &remote_manifest);
@@ -60,7 +59,8 @@ pub async fn run(profile: &str, branch_override: Option<String>) -> Result<()> {
             Some(value) => value,
         };
 
-        let aad = aad_for(1, &repo_id, &branch_label, &path, entry.tag());
+        let schema_version = response.schema_version;
+        let aad = aad_for(schema_version, &repo_id, &branch_label, &path, entry.tag());
         let aad_b64 = B64.encode(&aad);
         if response.aad != aad_b64 {
             return Err(MilieuError::Crypto(format!(
@@ -68,7 +68,7 @@ pub async fn run(profile: &str, branch_override: Option<String>) -> Result<()> {
                 path
             )));
         }
-        let remote_plain = decrypt_bytes(&umk, &aad, &response.nonce, &response.ciphertext)?;
+        let remote_plain = decrypt_bytes(&repo_key, &aad, &response.nonce, &response.ciphertext)?;
         let remote_hash = blake3::hash(&remote_plain);
         let local_plain = fs::read(&path).ok();
         let local_hash = local_plain.as_ref().map(|data| blake3::hash(data));

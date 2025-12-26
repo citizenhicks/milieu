@@ -1,8 +1,9 @@
 use crate::api::ApiClient;
 use crate::auth;
 use crate::config::Config;
-use crate::crypto::{aad_for, decode_key, decrypt_bytes};
+use crate::crypto::{aad_for, decrypt_bytes};
 use crate::error::Result;
+use crate::keys;
 use crate::manifest::Manifest;
 use crate::repo::{manifest_path, project_root, validate_env_path};
 use crate::style;
@@ -24,10 +25,8 @@ pub async fn run(profile: &str, json: bool) -> Result<()> {
     }
 
     let token = auth::load_auth_token(profile)?;
-    let umk_b64 = auth::load_umk(profile)?;
-    let umk = decode_key(&umk_b64)?;
-
     let client = ApiClient::new(base_url, Some(token))?;
+    let repo_key = keys::get_or_fetch_repo_key(profile, &client, &manifest.repo_id).await?;
 
     let tracked_all: HashSet<String> = manifest
         .branches
@@ -68,8 +67,14 @@ pub async fn run(profile: &str, json: bool) -> Result<()> {
                 let remote = client
                     .get_latest(&manifest.repo_id, &branch.name, path)
                     .await?;
-                let diff =
-                    change_kind(&local, remote.as_ref(), &umk, &manifest, &branch.name, entry);
+                let diff = change_kind(
+                    &local,
+                    remote.as_ref(),
+                    &repo_key,
+                    &manifest,
+                    &branch.name,
+                    entry,
+                );
                 entries.push(serde_json::json!({
                     "branch": branch.name,
                     "path": path,
@@ -123,7 +128,14 @@ pub async fn run(profile: &str, json: bool) -> Result<()> {
             let remote = client
                 .get_latest(&manifest.repo_id, &branch.name, path)
                 .await?;
-            let diff = change_kind(&local, remote.as_ref(), &umk, &manifest, &branch.name, entry);
+            let diff = change_kind(
+                &local,
+                remote.as_ref(),
+                &repo_key,
+                &manifest,
+                &branch.name,
+                entry,
+            );
             let entry_status = StatusEntry {
                 path: path.to_string(),
                 kind: diff,
@@ -279,7 +291,7 @@ struct StatusEntry {
 fn change_kind(
     local: &LocalStatus,
     remote: Option<&crate::api::ObjectResponse>,
-    umk: &[u8; 32],
+    repo_key: &[u8; 32],
     manifest: &Manifest,
     branch: &str,
     entry: &crate::manifest::FileEntry,
@@ -294,8 +306,9 @@ fn change_kind(
         (LocalStatus::Missing, Some(_)) => ChangeKind::NewRemote,
         (LocalStatus::Present { .. }, None) => ChangeKind::NewLocal,
         (LocalStatus::Present { hash: local_hash }, Some(remote_obj)) => {
-            let aad = aad_for(1, &manifest.repo_id, branch, entry.path(), entry.tag());
-            let remote_hash = match decrypt_bytes(umk, &aad, &remote_obj.nonce, &remote_obj.ciphertext) {
+            let schema_version = remote_obj.schema_version;
+            let aad = aad_for(schema_version, &manifest.repo_id, branch, entry.path(), entry.tag());
+            let remote_hash = match decrypt_bytes(repo_key, &aad, &remote_obj.nonce, &remote_obj.ciphertext) {
                 Ok(plaintext) => blake3::hash(&plaintext),
                 Err(_) => return ChangeKind::ModifiedUnknown,
             };

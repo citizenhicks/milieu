@@ -45,6 +45,47 @@ CREATE TABLE IF NOT EXISTS umk_blobs (
   FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
+-- User public keys for repo key wrapping
+CREATE TABLE IF NOT EXISTS user_keys (
+  user_id TEXT PRIMARY KEY,
+  public_key TEXT NOT NULL,
+  algorithm TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+-- Repo keys wrapped per user
+CREATE TABLE IF NOT EXISTS repo_keys (
+  repo_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  wrapped_key TEXT NOT NULL,
+  algorithm TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (repo_id, user_id),
+  FOREIGN KEY (repo_id) REFERENCES repos(id),
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+-- Audit log for repo key writes
+CREATE TABLE IF NOT EXISTS repo_key_events (
+  id TEXT PRIMARY KEY,
+  repo_id TEXT NOT NULL,
+  requester_user_id TEXT NOT NULL,
+  requester_email TEXT NOT NULL,
+  target_user_id TEXT NOT NULL,
+  target_email TEXT NOT NULL,
+  action TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  FOREIGN KEY (repo_id) REFERENCES repos(id),
+  FOREIGN KEY (requester_user_id) REFERENCES users(id),
+  FOREIGN KEY (target_user_id) REFERENCES users(id)
+);
+
+CREATE INDEX IF NOT EXISTS repo_key_events_repo
+  ON repo_key_events (repo_id, created_at DESC);
+
 -- Encrypted env objects
 CREATE TABLE IF NOT EXISTS env_objects (
   id TEXT PRIMARY KEY,
