@@ -36,7 +36,6 @@ pub async fn run(profile: &str) -> Result<()> {
     auth::store_email(profile, &email)?;
 
     let token_client = ApiClient::new(base_url, Some(login.access_token))?;
-    let _ = keys::ensure_user_keypair(profile, &token_client).await?;
     let umk = match token_client.get_umk().await? {
         None => {
             let umk = generate_umk();
@@ -87,6 +86,7 @@ pub async fn run(profile: &str) -> Result<()> {
 
     let umk_b64 = crate::crypto::encode_key(&umk);
     auth::store_umk(profile, &umk_b64)?;
+    let _ = keys::ensure_user_keypair(profile, &token_client).await?;
 
     let warning = login
         .warning
