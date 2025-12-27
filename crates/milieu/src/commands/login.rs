@@ -92,6 +92,10 @@ pub async fn run(profile_override: Option<String>) -> Result<()> {
     config.set_base_url(&profile, base_url);
     config.save()?;
     let _ = keys::ensure_user_keypair(&profile, &token_client).await?;
+    if let Ok(user_key) = token_client.get_user_key().await {
+        let updated_at = user_key.as_ref().map(|key| key.updated_at.as_str());
+        crate::commands::user::warn_login_key_age(updated_at);
+    }
 
     let warning = login
         .warning

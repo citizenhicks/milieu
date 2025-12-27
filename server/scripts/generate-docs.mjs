@@ -10,6 +10,7 @@ const commands = [
   { name: "milieu register", args: ["register", "--help"], title: "register" },
   { name: "milieu login", args: ["login", "--help"], title: "login" },
   { name: "milieu logout", args: ["logout", "--help"], title: "logout" },
+  { name: "milieu user", args: ["user", "--help"], title: "user" },
   { name: "milieu init", args: ["init", "--help"], title: "init" },
   { name: "milieu clone", args: ["clone", "--help"], title: "clone" },
   { name: "milieu repos", args: ["repos", "--help"], title: "repos" },
@@ -22,9 +23,6 @@ const commands = [
   { name: "milieu changes", args: ["changes", "--help"], title: "changes" },
   { name: "milieu log", args: ["log", "--help"], title: "log" },
   { name: "milieu checkout", args: ["checkout", "--help"], title: "checkout" },
-  { name: "milieu doctor", args: ["doctor", "--help"], title: "doctor" },
-  { name: "milieu phrase", args: ["phrase", "--help"], title: "phrase" },
-  { name: "milieu sessions", args: ["sessions", "--help"], title: "sessions" },
 ];
 
 function runHelp(args) {

@@ -42,6 +42,14 @@ enum Commands {
     #[command(about = "remove local auth and UMK from your keychain", after_help = "example: milieu logout")]
     Logout,
     #[command(
+        about = "user account info and key management",
+        after_help = "examples:\n  milieu user\n  milieu user sessions\n  milieu user rotate-keys"
+    )]
+    User {
+        #[command(subcommand)]
+        command: Option<UserCommand>,
+    },
+    #[command(
         about = "in your project directory, initialize the repo .milieu",
         after_help = "examples:\n  milieu init\n  milieu init --name my_repo"
     )]
@@ -140,18 +148,6 @@ enum Commands {
         #[arg(long)]
         json: bool,
     },
-    #[command(about = "check system prerequisites and configuration", after_help = "example: milieu doctor")]
-    Doctor,
-    #[command(
-        about = "manage recovery phrase",
-        after_help = "examples:\n  milieu phrase show\n  milieu phrase status"
-    )]
-    Phrase {
-        #[command(subcommand)]
-        command: PhraseCommand,
-    },
-    #[command(about = "list active sessions for this user", after_help = "example: milieu sessions")]
-    Sessions,
 }
 
 #[derive(Subcommand, Debug)]
@@ -253,11 +249,19 @@ enum ManageCommand {
 }
 
 #[derive(Subcommand, Debug)]
-enum PhraseCommand {
+enum UserCommand {
+    #[command(about = "show account overview (default)")]
+    Info,
+    #[command(about = "list active sessions for this user")]
+    Sessions,
+    #[command(about = "check system prerequisites and configuration")]
+    Doctor,
+    #[command(about = "rotate recovery phrase and user keys")]
+    RotateKeys,
     #[command(about = "show the recovery phrase from keychain")]
-    Show,
+    PhraseShow,
     #[command(about = "check if recovery phrase exists in keychain")]
-    Status,
+    PhraseStatus,
 }
 
 #[tokio::main]
@@ -287,6 +291,16 @@ async fn run() -> Result<()> {
         Commands::Register => commands::register::run(&profile).await?,
         Commands::Login => commands::login::run(cli.profile.clone()).await?,
         Commands::Logout => commands::logout::run(&profile).await?,
+        Commands::User { command } => {
+            match command.unwrap_or(UserCommand::Info) {
+                UserCommand::Info => commands::user::info(&profile).await?,
+                UserCommand::Sessions => commands::user::sessions(&profile).await?,
+                UserCommand::Doctor => commands::user::doctor(&profile)?,
+                UserCommand::RotateKeys => commands::user::rotate_keys(&profile).await?,
+                UserCommand::PhraseShow => commands::user::phrase_show(&profile)?,
+                UserCommand::PhraseStatus => commands::user::phrase_status(&profile)?,
+            }
+        }
         Commands::Init { name } => commands::init::run(&profile, name).await?,
         Commands::Clone { repo } => commands::clone::run(&profile, repo).await?,
         Commands::Repos { command } => match command {
@@ -319,7 +333,6 @@ async fn run() -> Result<()> {
                 }
             },
         },
-        Commands::Sessions => commands::sessions::list(&profile).await?,
         Commands::Branch { command } => match command {
             BranchCommand::List => commands::branches::list()?,
             BranchCommand::Add { name, file, tag } => {
@@ -354,11 +367,6 @@ async fn run() -> Result<()> {
         Commands::Push { branch } => commands::push::run(&profile, branch).await?,
         Commands::Pull { branch } => commands::pull::run(&profile, branch).await?,
         Commands::Status { json } => commands::status::run(&profile, json).await?,
-        Commands::Doctor => commands::doctor::run(&profile)?,
-        Commands::Phrase { command } => match command {
-            PhraseCommand::Show => commands::phrase::show(&profile)?,
-            PhraseCommand::Status => commands::phrase::status(&profile)?,
-        },
     }
 
     Ok(())
@@ -392,7 +400,7 @@ fn print_banner_and_help() -> Result<()> {
     println!("{}", style::bold(style::MAUVE, "User commands:"));
     print_grouped_commands(
         &cmd,
-        &["register", "login", "logout", "doctor", "phrase", "repos", "sessions"],
+        &["register", "login", "logout", "user", "repos"],
     );
     println!();
 

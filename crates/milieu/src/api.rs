@@ -32,9 +32,15 @@ pub struct UmkResponse {
     pub encrypted_umk: String,
     pub kdf_params: serde_json::Value,
     pub version: u32,
+    pub updated_at: Option<String>,
 }
 
-pub type UmkRequest = UmkResponse;
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UmkRequest {
+    pub encrypted_umk: String,
+    pub kdf_params: serde_json::Value,
+    pub version: u32,
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ObjectRequest {

@@ -3,7 +3,6 @@ use crate::manifest::Manifest;
 use crate::style;
 
 pub mod push;
-pub mod doctor;
 pub mod clone;
 pub mod add;
 pub mod changes;
@@ -11,15 +10,14 @@ pub mod checkout;
 pub mod init;
 pub mod login;
 pub mod log;
-pub mod phrase;
 pub mod register;
 pub mod logout;
 pub mod pull;
 pub mod repos;
-pub mod sessions;
 pub mod branches;
 pub mod status;
 pub mod remove;
+pub mod user;
 
 pub fn print_scope_user(profile: &str) {
     let label = match crate::auth::load_email(profile) {

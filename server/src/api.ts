@@ -49,9 +49,14 @@ type UmkResponse = {
   encrypted_umk: string;
   kdf_params: Json;
   version: number;
+  updated_at?: string;
 };
 
-type UmkRequest = UmkResponse;
+type UmkRequest = {
+  encrypted_umk: string;
+  kdf_params: Json;
+  version: number;
+};
 
 type ObjectRequest = {
   path: string;
@@ -769,7 +774,7 @@ async function handlePutManifest(
 
 async function handleGetUmk(userId: string, env: Env): Promise<Response> {
   const row = await env.DB.prepare(
-    "SELECT encrypted_umk, kdf_params, version FROM umk_blobs WHERE user_id = ?",
+    "SELECT encrypted_umk, kdf_params, version, updated_at FROM umk_blobs WHERE user_id = ?",
   )
     .bind(userId)
     .first<Record<string, string | number>>();
@@ -782,6 +787,7 @@ async function handleGetUmk(userId: string, env: Env): Promise<Response> {
     encrypted_umk: row.encrypted_umk as string,
     kdf_params: JSON.parse(row.kdf_params as string),
     version: Number(row.version),
+    updated_at: row.updated_at as string,
   };
 
   return json(response, 200);
@@ -913,8 +919,13 @@ async function handlePutRepoKey(
   const targetEmail = normalizeEmail(body.email) ?? requesterEmail;
   if (!targetEmail) return json({ error: "invalid_email" }, 400);
 
-  const owned = await ensureRepoOwned(env, userId, repoId);
-  if (!owned) return json({ error: "repo_not_found" }, 404);
+  if (targetEmail !== requesterEmail) {
+    const owned = await ensureRepoOwned(env, userId, repoId);
+    if (!owned) return json({ error: "repo_not_found" }, 404);
+  } else {
+    const repo = await ensureRepoAccess(env, userId, repoId, "read");
+    if (!repo) return json({ error: "repo_not_found" }, 404);
+  }
 
   const userRow = await env.DB.prepare("SELECT id FROM users WHERE email = ?")
     .bind(targetEmail)
