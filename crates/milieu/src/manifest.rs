@@ -84,14 +84,14 @@ impl Manifest {
     pub fn find_branch(&self, name: &str) -> Result<&Branch> {
         self.branches
             .iter()
-            .find(|section| section.name == name)
+            .find(|branch| branch.name == name)
             .ok_or_else(|| MilieuError::BranchNotFound(name.to_string()))
     }
 
     pub fn find_branch_mut(&mut self, name: &str) -> Result<&mut Branch> {
         self.branches
             .iter_mut()
-            .find(|section| section.name == name)
+            .find(|branch| branch.name == name)
             .ok_or_else(|| MilieuError::BranchNotFound(name.to_string()))
     }
 

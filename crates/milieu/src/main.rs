@@ -119,9 +119,9 @@ enum Commands {
         about = "manage repo branches and their dotenv files",
         after_help = "examples:\n  milieu branch list\n  milieu branch add dev --file .env\n  milieu branch set dev"
     )]
-    Sections {
+    Branch {
         #[command(subcommand)]
-        command: SectionsCommand,
+        command: BranchCommand,
     },
     #[command(about = "push branch changes to the server", after_help = "example: milieu push --branch dev")]
     Push {
@@ -153,7 +153,7 @@ enum Commands {
 }
 
 #[derive(Subcommand, Debug)]
-enum SectionsCommand {
+enum BranchCommand {
     #[command(about = "list branches in this repo", after_help = "example: milieu branch list")]
     List,
     #[command(
@@ -313,15 +313,15 @@ async fn run() -> Result<()> {
             },
         },
         Commands::Sessions => commands::sessions::list(&cli.profile).await?,
-        Commands::Sections { command } => match command {
-            SectionsCommand::List => commands::branches::list()?,
-            SectionsCommand::Add { name, file, tag } => {
+        Commands::Branch { command } => match command {
+            BranchCommand::List => commands::branches::list()?,
+            BranchCommand::Add { name, file, tag } => {
                 commands::branches::add_and_sync(&cli.profile, &name, file, tag).await?
             }
-            SectionsCommand::Remove { name } => {
+            BranchCommand::Remove { name } => {
                 commands::branches::remove_and_sync(&cli.profile, &name).await?
             }
-            SectionsCommand::Set { name } => {
+            BranchCommand::Set { name } => {
                 commands::branches::set_default_and_sync(&cli.profile, &name).await?
             }
         },
