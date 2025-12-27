@@ -24,7 +24,7 @@ pub async fn run(profile: &str, repo_name: Option<String>) -> Result<()> {
     let config = Config::load()?;
     let base_url = config.base_url_for(profile)?;
     let token = auth::load_auth_token(profile)?;
-    let client = ApiClient::new(base_url, Some(token))?;
+    let client = ApiClient::new(&base_url, Some(token))?;
 
     let repo = client.get_repo_by_name(&name).await?;
     let manifest = client.get_manifest(&repo.repo_id).await?;

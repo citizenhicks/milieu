@@ -19,13 +19,18 @@ fn cache() -> &'static Mutex<HashMap<String, SessionSecret>> {
     SESSION_CACHE.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
+fn profile_key(profile: &str) -> String {
+    profile.trim().to_lowercase()
+}
+
 fn session_key(profile: &str) -> String {
-    format!("session:{}", profile)
+    format!("session:{}", profile_key(profile))
 }
 
 fn load_session(profile: &str) -> Result<SessionSecret> {
+    let key = profile_key(profile);
     if let Ok(cache) = cache().lock() {
-        if let Some(entry) = cache.get(profile) {
+        if let Some(entry) = cache.get(&key) {
             return Ok(entry.clone());
         }
     }
@@ -39,17 +44,18 @@ fn load_session(profile: &str) -> Result<SessionSecret> {
 
 
     if let Ok(mut cache) = cache().lock() {
-        cache.insert(profile.to_string(), secret.clone());
+        cache.insert(key, secret.clone());
     }
 
     Ok(secret)
 }
 
 fn store_session(profile: &str, secret: &SessionSecret) -> Result<()> {
+    let key = profile_key(profile);
     let data = serde_json::to_string(secret)?;
     keychain::set_secret(&session_key(profile), &data)?;
     if let Ok(mut cache) = cache().lock() {
-        cache.insert(profile.to_string(), secret.clone());
+        cache.insert(key, secret.clone());
     }
     Ok(())
 }
@@ -119,9 +125,10 @@ pub fn clear_umk(profile: &str) -> Result<()> {
 }
 
 pub fn delete_session(profile: &str) -> Result<()> {
+    let key = profile_key(profile);
     let _ = keychain::delete_secret(&session_key(profile));
     if let Ok(mut cache) = cache().lock() {
-        cache.remove(profile);
+        cache.remove(&key);
     }
     Ok(())
 }

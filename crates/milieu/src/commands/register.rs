@@ -5,7 +5,7 @@ use crate::error::Result;
 use crate::style;
 
 pub async fn run(profile: &str) -> Result<()> {
-    crate::commands::print_scope_user();
+    crate::commands::print_scope_user(profile);
     let config = Config::load()?;
     let base_url = config.base_url_for(profile)?;
 
@@ -19,7 +19,7 @@ pub async fn run(profile: &str) -> Result<()> {
         )
     );
 
-    let client = ApiClient::new(base_url, None)?;
+    let client = ApiClient::new(&base_url, None)?;
     let _ = client
         .register(&RegisterRequest {
             email: email.clone(),

@@ -7,12 +7,12 @@ use crate::style;
 use atty::Stream;
 
 pub async fn list(profile: &str) -> Result<()> {
-    crate::commands::print_scope_user();
+    crate::commands::print_scope_user(profile);
     let config = Config::load()?;
     let base_url = config.base_url_for(profile)?;
 
     let token = auth::load_auth_token(profile)?;
-    let client = ApiClient::new(base_url, Some(token))?;
+    let client = ApiClient::new(&base_url, Some(token))?;
 
     let repos = client.get_repos().await?;
     if repos.is_empty() {
@@ -85,7 +85,7 @@ pub async fn list(profile: &str) -> Result<()> {
 }
 
 pub async fn manage_list(profile: &str, repo_name: &str) -> Result<()> {
-    crate::commands::print_scope_user();
+    crate::commands::print_scope_user(profile);
     let (client, repo) = client_and_repo(profile, repo_name).await?;
     let entries = client.get_repo_access(&repo.repo_id).await?;
 
@@ -99,7 +99,7 @@ pub async fn manage_list(profile: &str, repo_name: &str) -> Result<()> {
 }
 
 pub async fn manage_add(profile: &str, repo_name: &str, email: &str, role: &str) -> Result<()> {
-    crate::commands::print_scope_user();
+    crate::commands::print_scope_user(profile);
     let (client, repo) = client_and_repo(profile, repo_name).await?;
     client.invite_repo_access(&repo.repo_id, email, role).await?;
     println!(
@@ -113,7 +113,7 @@ pub async fn manage_add(profile: &str, repo_name: &str, email: &str, role: &str)
 }
 
 pub async fn manage_set(profile: &str, repo_name: &str, email: &str, role: &str) -> Result<()> {
-    crate::commands::print_scope_user();
+    crate::commands::print_scope_user(profile);
     let (client, repo) = client_and_repo(profile, repo_name).await?;
     client.update_repo_access(&repo.repo_id, email, role).await?;
     println!(
@@ -127,7 +127,7 @@ pub async fn manage_set(profile: &str, repo_name: &str, email: &str, role: &str)
 }
 
 pub async fn manage_remove(profile: &str, repo_name: &str, email: &str) -> Result<()> {
-    crate::commands::print_scope_user();
+    crate::commands::print_scope_user(profile);
     let (client, repo) = client_and_repo(profile, repo_name).await?;
     client.revoke_repo_access(&repo.repo_id, email).await?;
     println!(
@@ -141,7 +141,7 @@ pub async fn manage_remove(profile: &str, repo_name: &str, email: &str) -> Resul
 }
 
 pub async fn manage_delete(profile: &str, repo_name: &str) -> Result<()> {
-    crate::commands::print_scope_user();
+    crate::commands::print_scope_user(profile);
     let (client, repo) = client_and_repo(profile, repo_name).await?;
 
     let first = crate::commands::prompt(&format!(
@@ -171,7 +171,7 @@ pub async fn manage_delete(profile: &str, repo_name: &str) -> Result<()> {
 }
 
 pub async fn manage_invites(profile: &str) -> Result<()> {
-    crate::commands::print_scope_user();
+    crate::commands::print_scope_user(profile);
     let client = client_only(profile).await?;
     let invites = client.get_invites().await?;
     if invites.is_empty() {
@@ -218,7 +218,7 @@ pub async fn manage_invites(profile: &str) -> Result<()> {
 }
 
 pub async fn manage_share(profile: &str, repo_name: &str) -> Result<()> {
-    crate::commands::print_scope_user();
+    crate::commands::print_scope_user(profile);
     let (client, repo) = client_and_repo(profile, repo_name).await?;
     let _ = keys::ensure_user_keypair(profile, &client).await?;
     let repo_key = keys::get_or_fetch_repo_key(profile, &client, &repo.repo_id).await?;
@@ -279,7 +279,7 @@ pub async fn manage_share(profile: &str, repo_name: &str) -> Result<()> {
 }
 
 pub async fn manage_accept(profile: &str, invite_id: &str) -> Result<()> {
-    crate::commands::print_scope_user();
+    crate::commands::print_scope_user(profile);
     let client = client_only(profile).await?;
     client.accept_invite(invite_id).await?;
     println!("{}", style::paint(style::GREEN, "invite accepted"));
@@ -287,7 +287,7 @@ pub async fn manage_accept(profile: &str, invite_id: &str) -> Result<()> {
 }
 
 pub async fn manage_reject(profile: &str, invite_id: &str) -> Result<()> {
-    crate::commands::print_scope_user();
+    crate::commands::print_scope_user(profile);
     let client = client_only(profile).await?;
     client.reject_invite(invite_id).await?;
     println!("{}", style::paint(style::PEACH, "invite rejected"));
@@ -385,7 +385,7 @@ async fn client_only(profile: &str) -> Result<ApiClient> {
     let config = Config::load()?;
     let base_url = config.base_url_for(profile)?;
     let token = auth::load_auth_token(profile)?;
-    ApiClient::new(base_url, Some(token))
+    ApiClient::new(&base_url, Some(token))
 }
 
 async fn client_and_repo(profile: &str, repo_name: &str) -> Result<(ApiClient, RepoResponse)> {

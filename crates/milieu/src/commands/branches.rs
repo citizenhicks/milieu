@@ -96,7 +96,7 @@ pub async fn sync(profile: &str) -> Result<()> {
     let config = Config::load()?;
     let base_url = config.base_url_for(profile)?;
     let token = auth::load_auth_token(profile)?;
-    let client = ApiClient::new(base_url, Some(token))?;
+    let client = ApiClient::new(&base_url, Some(token))?;
     client.put_manifest(&manifest).await?;
     Ok(())
 }

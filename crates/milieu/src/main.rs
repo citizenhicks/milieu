@@ -11,6 +11,7 @@ mod repo;
 mod style;
 
 use clap::{Parser, Subcommand};
+use config::Config;
 use error::Result;
 
 #[derive(Parser, Debug)]
@@ -21,8 +22,9 @@ use error::Result;
     after_help = "tip: run `milieu <command> --help` for examples."
 )]
 struct Cli {
-    #[arg(long, default_value = "default")]
-    profile: String,
+    // Profile key for config/keychain. Default is your email address.
+    #[arg(long, help = "profile key for config/keychain (use your email)")]
+    profile: Option<String>,
 
     #[arg(short, long, action = clap::ArgAction::Count)]
     verbose: u8,
@@ -275,54 +277,59 @@ async fn run() -> Result<()> {
 
     let cli = Cli::parse();
     init_tracing(cli.verbose);
+    let config = Config::load()?;
+    let profile = cli
+        .profile
+        .clone()
+        .unwrap_or_else(|| config.active_profile.clone());
 
     match cli.command {
-        Commands::Register => commands::register::run(&cli.profile).await?,
-        Commands::Login => commands::login::run(&cli.profile).await?,
-        Commands::Logout => commands::logout::run(&cli.profile).await?,
-        Commands::Init { name } => commands::init::run(&cli.profile, name).await?,
-        Commands::Clone { repo } => commands::clone::run(&cli.profile, repo).await?,
+        Commands::Register => commands::register::run(&profile).await?,
+        Commands::Login => commands::login::run(cli.profile.clone()).await?,
+        Commands::Logout => commands::logout::run(&profile).await?,
+        Commands::Init { name } => commands::init::run(&profile, name).await?,
+        Commands::Clone { repo } => commands::clone::run(&profile, repo).await?,
         Commands::Repos { command } => match command {
-            ReposCommand::List => commands::repos::list(&cli.profile).await?,
+            ReposCommand::List => commands::repos::list(&profile).await?,
             ReposCommand::Manage { command } => match command {
                 ManageCommand::List { repo } => {
-                    commands::repos::manage_list(&cli.profile, &repo).await?
+                    commands::repos::manage_list(&profile, &repo).await?
                 }
                 ManageCommand::Add { repo, email, access } => {
-                    commands::repos::manage_add(&cli.profile, &repo, &email, &access).await?
+                    commands::repos::manage_add(&profile, &repo, &email, &access).await?
                 }
                 ManageCommand::Set { repo, email, access } => {
-                    commands::repos::manage_set(&cli.profile, &repo, &email, &access).await?
+                    commands::repos::manage_set(&profile, &repo, &email, &access).await?
                 }
                 ManageCommand::Remove { repo, email } => {
-                    commands::repos::manage_remove(&cli.profile, &repo, &email).await?
+                    commands::repos::manage_remove(&profile, &repo, &email).await?
                 }
-                ManageCommand::Invites => commands::repos::manage_invites(&cli.profile).await?,
+                ManageCommand::Invites => commands::repos::manage_invites(&profile).await?,
                 ManageCommand::Accept { invite_id } => {
-                    commands::repos::manage_accept(&cli.profile, &invite_id).await?
+                    commands::repos::manage_accept(&profile, &invite_id).await?
                 }
                 ManageCommand::Reject { invite_id } => {
-                    commands::repos::manage_reject(&cli.profile, &invite_id).await?
+                    commands::repos::manage_reject(&profile, &invite_id).await?
                 }
                 ManageCommand::Share { repo } => {
-                    commands::repos::manage_share(&cli.profile, &repo).await?
+                    commands::repos::manage_share(&profile, &repo).await?
                 }
                 ManageCommand::Delete { repo } => {
-                    commands::repos::manage_delete(&cli.profile, &repo).await?
+                    commands::repos::manage_delete(&profile, &repo).await?
                 }
             },
         },
-        Commands::Sessions => commands::sessions::list(&cli.profile).await?,
+        Commands::Sessions => commands::sessions::list(&profile).await?,
         Commands::Branch { command } => match command {
             BranchCommand::List => commands::branches::list()?,
             BranchCommand::Add { name, file, tag } => {
-                commands::branches::add_and_sync(&cli.profile, &name, file, tag).await?
+                commands::branches::add_and_sync(&profile, &name, file, tag).await?
             }
             BranchCommand::Remove { name } => {
-                commands::branches::remove_and_sync(&cli.profile, &name).await?
+                commands::branches::remove_and_sync(&profile, &name).await?
             }
             BranchCommand::Set { name } => {
-                commands::branches::set_default_and_sync(&cli.profile, &name).await?
+                commands::branches::set_default_and_sync(&profile, &name).await?
             }
         },
         Commands::Add { path, tag, branch } => {
@@ -332,25 +339,25 @@ async fn run() -> Result<()> {
             commands::remove::run(&path, branch)?
         }
         Commands::Log { path, branch } => {
-            commands::log::run(&cli.profile, path, branch).await?
+            commands::log::run(&profile, path, branch).await?
         }
         Commands::Checkout {
             path,
             version,
             branch,
         } => {
-            commands::checkout::run(&cli.profile, path, version, branch).await?
+            commands::checkout::run(&profile, path, version, branch).await?
         }
         Commands::Changes { path, branch, version } => {
-            commands::changes::run(&cli.profile, path, branch, version).await?
+            commands::changes::run(&profile, path, branch, version).await?
         }
-        Commands::Push { branch } => commands::push::run(&cli.profile, branch).await?,
-        Commands::Pull { branch } => commands::pull::run(&cli.profile, branch).await?,
-        Commands::Status { json } => commands::status::run(&cli.profile, json).await?,
-        Commands::Doctor => commands::doctor::run(&cli.profile)?,
+        Commands::Push { branch } => commands::push::run(&profile, branch).await?,
+        Commands::Pull { branch } => commands::pull::run(&profile, branch).await?,
+        Commands::Status { json } => commands::status::run(&profile, json).await?,
+        Commands::Doctor => commands::doctor::run(&profile)?,
         Commands::Phrase { command } => match command {
-            PhraseCommand::Show => commands::phrase::show(&cli.profile)?,
-            PhraseCommand::Status => commands::phrase::status(&cli.profile)?,
+            PhraseCommand::Show => commands::phrase::show(&profile)?,
+            PhraseCommand::Status => commands::phrase::status(&profile)?,
         },
     }
 

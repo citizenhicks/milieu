@@ -21,7 +21,7 @@ pub async fn run(profile: &str, path: String, branch_override: Option<String>) -
     }
 
     let token = auth::load_auth_token(profile)?;
-    let client = ApiClient::new(base_url, Some(token))?;
+    let client = ApiClient::new(&base_url, Some(token))?;
 
     let history = client.get_history(&manifest.repo_id, &branch_name, &path).await?;
     if history.is_empty() {

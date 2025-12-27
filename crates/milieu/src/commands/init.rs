@@ -36,7 +36,7 @@ pub async fn run(profile: &str, name_override: Option<String>) -> Result<()> {
     let config = Config::load()?;
     let base_url = config.base_url_for(profile)?;
     let token = auth::load_auth_token(profile)?;
-    let client = ApiClient::new(base_url, Some(token))?;
+    let client = ApiClient::new(&base_url, Some(token))?;
 
     let repo = client.create_repo(&repo_name).await?;
 

@@ -3,7 +3,7 @@ use crate::error::{MilieuError, Result};
 use crate::style;
 
 pub fn show(profile: &str) -> Result<()> {
-    crate::commands::print_scope_user();
+    crate::commands::print_scope_user(profile);
     let _user_id = auth::load_user_id(profile)?;
     match auth::load_phrase(profile)? {
         Some(phrase) => {
@@ -24,7 +24,7 @@ pub fn show(profile: &str) -> Result<()> {
 }
 
 pub fn status(profile: &str) -> Result<()> {
-    crate::commands::print_scope_user();
+    crate::commands::print_scope_user(profile);
     let _user_id = auth::load_user_id(profile)?;
     let exists = auth::load_phrase(profile)?.is_some();
     if exists {

@@ -5,12 +5,12 @@ use crate::error::Result;
 use crate::style;
 
 pub async fn list(profile: &str) -> Result<()> {
-    crate::commands::print_scope_user();
+    crate::commands::print_scope_user(profile);
     let config = Config::load()?;
     let base_url = config.base_url_for(profile)?;
 
     let token = auth::load_auth_token(profile)?;
-    let client = ApiClient::new(base_url, Some(token))?;
+    let client = ApiClient::new(&base_url, Some(token))?;
 
     let sessions = client.get_sessions().await?;
     if sessions.is_empty() {

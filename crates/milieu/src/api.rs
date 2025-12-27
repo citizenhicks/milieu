@@ -146,10 +146,10 @@ pub struct ApiClient {
 }
 
 impl ApiClient {
-    pub fn new(base_url: String, token: Option<String>) -> Result<Self> {
+    pub fn new(base_url: &str, token: Option<String>) -> Result<Self> {
         let client = reqwest::Client::builder().build()?;
         Ok(Self {
-            base_url,
+            base_url: base_url.to_string(),
             token,
             client,
         })

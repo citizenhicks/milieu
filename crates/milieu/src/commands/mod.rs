@@ -21,8 +21,8 @@ pub mod branches;
 pub mod status;
 pub mod remove;
 
-pub fn print_scope_user() {
-    let label = match crate::auth::load_email("default") {
+pub fn print_scope_user(profile: &str) {
+    let label = match crate::auth::load_email(profile) {
         Ok(Some(email)) => format!("SCOPE: user {}", email),
         _ => "SCOPE: user".to_string(),
     };

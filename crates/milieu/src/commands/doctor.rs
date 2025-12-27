@@ -6,7 +6,7 @@ use crate::repo::{manifest_path, project_root};
 use crate::style;
 
 pub fn run(profile: &str) -> Result<()> {
-    crate::commands::print_scope_user();
+    crate::commands::print_scope_user(profile);
     println!("{}", style::bold(style::MAUVE, "Milieu doctor"));
 
     match Config::load() {

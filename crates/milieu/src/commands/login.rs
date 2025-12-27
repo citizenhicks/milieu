@@ -10,15 +10,17 @@ use bip39::{Language, Mnemonic};
 use rand_core::{OsRng, RngCore};
 use tracing::debug;
 
-pub async fn run(profile: &str) -> Result<()> {
-    crate::commands::print_scope_user();
-    let config = Config::load()?;
-    let base_url = config.base_url_for(profile)?;
+pub async fn run(profile_override: Option<String>) -> Result<()> {
+    crate::commands::print_scope_user(profile_override.as_deref().unwrap_or("default"));
+    let mut config = Config::load()?;
+    let base_url = config.base_url_for(profile_override.as_deref().unwrap_or("default"))?;
 
     let email = prompt("Email: ")?;
     let password = prompt_password("Password: ")?;
+    let normalized_email = email.trim().to_lowercase();
+    let profile = profile_override.unwrap_or_else(|| normalized_email.clone());
 
-    let client = ApiClient::new(base_url.clone(), None)?;
+    let client = ApiClient::new(&base_url, None)?;
     let host = hostname::get()
         .ok()
         .and_then(|value| value.into_string().ok())
@@ -32,10 +34,10 @@ pub async fn run(profile: &str) -> Result<()> {
         })
         .await?;
 
-    auth::store_auth(profile, &login.access_token, &login.user_id)?;
-    auth::store_email(profile, &email)?;
+    auth::store_auth(&profile, &login.access_token, &login.user_id)?;
+    auth::store_email(&profile, &normalized_email)?;
 
-    let token_client = ApiClient::new(base_url, Some(login.access_token))?;
+    let token_client = ApiClient::new(&base_url, Some(login.access_token))?;
     let umk = match token_client.get_umk().await? {
         None => {
             let umk = generate_umk();
@@ -53,7 +55,7 @@ pub async fn run(profile: &str) -> Result<()> {
                 version: 1,
             };
             token_client.put_umk(&request).await?;
-            auth::store_phrase(profile, &phrase)?;
+            auth::store_phrase(&profile, &phrase)?;
 
             println!(
                 "{}",
@@ -67,7 +69,7 @@ pub async fn run(profile: &str) -> Result<()> {
         }
         Some(response) => {
             let params: KdfParams = serde_json::from_value(response.kdf_params)?;
-            let phrase = match auth::load_phrase(profile)? {
+            let phrase = match auth::load_phrase(&profile)? {
                 Some(value) => value,
                 None => prompt_password("Recovery phrase: ")?,
             };
@@ -85,8 +87,11 @@ pub async fn run(profile: &str) -> Result<()> {
     };
 
     let umk_b64 = crate::crypto::encode_key(&umk);
-    auth::store_umk(profile, &umk_b64)?;
-    let _ = keys::ensure_user_keypair(profile, &token_client).await?;
+    auth::store_umk(&profile, &umk_b64)?;
+    config.active_profile = profile.clone();
+    config.set_base_url(&profile, base_url);
+    config.save()?;
+    let _ = keys::ensure_user_keypair(&profile, &token_client).await?;
 
     let warning = login
         .warning

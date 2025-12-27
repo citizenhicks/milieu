@@ -38,7 +38,7 @@ pub async fn run(
     }
 
     let token = auth::load_auth_token(profile)?;
-    let client = ApiClient::new(base_url, Some(token))?;
+    let client = ApiClient::new(&base_url, Some(token))?;
     let repo_key = keys::get_or_fetch_repo_key(profile, &client, &manifest.repo_id).await?;
 
     let remote = client
