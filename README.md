@@ -87,6 +87,18 @@ sequenceDiagram
   S->>D: store repo_keys
   end
 
+  rect rgba(148, 226, 213, 0.08)
+  note over U,C: Key rotation
+  U->>C: user rotate-keys
+  C->>C: generate new phrase + UMK
+  C->>S: PUT /v1/users/me/umk
+  S->>D: store umk_blobs
+  C->>S: PUT /v1/users/me/key (new public key)
+  S->>D: update user_keys
+  C->>S: PUT /v1/repos/:id/key (rewrapped keys)
+  S->>D: update repo_keys
+  end
+
   rect rgba(137, 180, 250, 0.08)
   note over U,C: Write path
   U->>C: push .env

@@ -90,6 +90,22 @@ const sections = [
   `,
   },
   {
+    id: "user-management",
+    title: "User management",
+    html: `
+    <section class="doc-section" id="user-management">
+      <h2>User management</h2>
+      <p>Use <code>milieu user</code> for account info, sessions, and key rotation. Rotate keys roughly every 90 days.</p>
+      <ul class="feature-list">
+        <li><code>milieu user</code> — account overview + key age.</li>
+        <li><code>milieu user sessions</code> — list active sessions.</li>
+        <li><code>milieu user rotate-keys</code> — rotates recovery phrase/UMK and rewraps repo keys so you keep access.</li>
+        <li><code>milieu user phrase-show</code> / <code>phrase-status</code> — recovery phrase tools.</li>
+      </ul>
+    </section>
+  `,
+  },
+  {
     id: "recovery-phrase-collision-risk",
     title: "Recovery phrase collision risk",
     html: `

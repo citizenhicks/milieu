@@ -272,11 +272,13 @@ export const DOCS_HTML = String.raw`
         <input class="search" type="search" placeholder="Search sections..." aria-label="Search sections" />
         <ul class="nav-list">
           <li><a href="#features" data-section="features">Features</a></li>
+<li><a href="#user-management" data-section="user-management">User management</a></li>
 <li><a href="#recovery-phrase-collision-risk" data-section="recovery-phrase-collision-risk">Recovery phrase collision risk</a></li>
 <li><a href="#overview" data-section="overview">Overview</a></li>
 <li><a href="#register" data-section="register">register</a></li>
 <li><a href="#login" data-section="login">login</a></li>
 <li><a href="#logout" data-section="logout">logout</a></li>
+<li><a href="#user" data-section="user">user</a></li>
 <li><a href="#init" data-section="init">init</a></li>
 <li><a href="#clone" data-section="clone">clone</a></li>
 <li><a href="#repos" data-section="repos">repos</a></li>
@@ -289,9 +291,6 @@ export const DOCS_HTML = String.raw`
 <li><a href="#changes" data-section="changes">changes</a></li>
 <li><a href="#log" data-section="log">log</a></li>
 <li><a href="#checkout" data-section="checkout">checkout</a></li>
-<li><a href="#doctor" data-section="doctor">doctor</a></li>
-<li><a href="#phrase" data-section="phrase">phrase</a></li>
-<li><a href="#sessions" data-section="sessions">sessions</a></li>
         </ul>
       </aside>
       <main>
@@ -307,6 +306,18 @@ export const DOCS_HTML = String.raw`
 <li>Shared repo keys for collaborators (owner runs &#96;milieu repos manage share&#96;)</li>
 <li>Session management and device tracking</li>
 <li>Self-hostable Cloudflare Worker + D1 API</li>
+      </ul>
+    </section>
+  
+
+    <section class="doc-section" id="user-management">
+      <h2>User management</h2>
+      <p>Use <code>milieu user</code> for account info, sessions, and key rotation. Rotate keys roughly every 90 days.</p>
+      <ul class="feature-list">
+        <li><code>milieu user</code> — account overview + key age.</li>
+        <li><code>milieu user sessions</code> — list active sessions.</li>
+        <li><code>milieu user rotate-keys</code> — rotates recovery phrase/UMK and rewraps repo keys so you keep access.</li>
+        <li><code>milieu user phrase-show</code> / <code>phrase-status</code> — recovery phrase tools.</li>
       </ul>
     </section>
   
@@ -327,6 +338,7 @@ Commands:
   register  create an account for milieu
   login     login to your milieu account
   logout    remove local auth and UMK from your keychain
+  user      user account info and key management
   init      in your project directory, initialize the repo .milieu
   clone     clone a repo into this folder
   add       add a dotenv file to the current branch
@@ -339,13 +351,10 @@ Commands:
   push      push branch changes to the server
   pull      download and decrypt dotenv files for a branch
   status    show local vs remote state for this repo
-  doctor    check system prerequisites and configuration
-  phrase    manage recovery phrase
-  sessions  list active sessions for this user
   help      Print this message or the help of the given subcommand(s)
 
 Options:
-      --profile &lt;PROFILE&gt;  [default: default]
+      --profile &lt;PROFILE&gt;  profile key for config/keychain (use your email)
   -v, --verbose...         
   -h, --help               Print help
   -V, --version            Print version
@@ -390,6 +399,31 @@ Options:
   -h, --help  Print help
 
 example: milieu logout</code></pre>
+    </section>
+  
+
+    <section class="doc-section" id="user">
+      <h2>user</h2>
+      <pre><code>user account info and key management
+
+Usage: milieu user [COMMAND]
+
+Commands:
+  info           show account overview (default)
+  sessions       list active sessions for this user
+  doctor         check system prerequisites and configuration
+  rotate-keys    rotate recovery phrase and user keys
+  phrase-show    show the recovery phrase from keychain
+  phrase-status  check if recovery phrase exists in keychain
+  help           Print this message or the help of the given subcommand(s)
+
+Options:
+  -h, --help  Print help
+
+examples:
+  milieu user
+  milieu user sessions
+  milieu user rotate-keys</code></pre>
     </section>
   
 
@@ -604,52 +638,6 @@ Options:
 example: milieu checkout .env --version 3</code></pre>
     </section>
   
-
-    <section class="doc-section" id="doctor">
-      <h2>doctor</h2>
-      <pre><code>check system prerequisites and configuration
-
-Usage: milieu doctor
-
-Options:
-  -h, --help  Print help
-
-example: milieu doctor</code></pre>
-    </section>
-  
-
-    <section class="doc-section" id="phrase">
-      <h2>phrase</h2>
-      <pre><code>manage recovery phrase
-
-Usage: milieu phrase &lt;COMMAND&gt;
-
-Commands:
-  show    show the recovery phrase from keychain
-  status  check if recovery phrase exists in keychain
-  help    Print this message or the help of the given subcommand(s)
-
-Options:
-  -h, --help  Print help
-
-examples:
-  milieu phrase show
-  milieu phrase status</code></pre>
-    </section>
-  
-
-    <section class="doc-section" id="sessions">
-      <h2>sessions</h2>
-      <pre><code>list active sessions for this user
-
-Usage: milieu sessions
-
-Options:
-  -h, --help  Print help
-
-example: milieu sessions</code></pre>
-    </section>
-  
       </main>
     </div>
     <div class="drawer-backdrop" data-drawer-backdrop></div>
@@ -658,11 +646,13 @@ example: milieu sessions</code></pre>
       <input class="search" type="search" placeholder="Search sections..." aria-label="Search sections" />
       <ul class="nav-list">
         <li><a href="#features" data-section="features">Features</a></li>
+<li><a href="#user-management" data-section="user-management">User management</a></li>
 <li><a href="#recovery-phrase-collision-risk" data-section="recovery-phrase-collision-risk">Recovery phrase collision risk</a></li>
 <li><a href="#overview" data-section="overview">Overview</a></li>
 <li><a href="#register" data-section="register">register</a></li>
 <li><a href="#login" data-section="login">login</a></li>
 <li><a href="#logout" data-section="logout">logout</a></li>
+<li><a href="#user" data-section="user">user</a></li>
 <li><a href="#init" data-section="init">init</a></li>
 <li><a href="#clone" data-section="clone">clone</a></li>
 <li><a href="#repos" data-section="repos">repos</a></li>
@@ -675,9 +665,6 @@ example: milieu sessions</code></pre>
 <li><a href="#changes" data-section="changes">changes</a></li>
 <li><a href="#log" data-section="log">log</a></li>
 <li><a href="#checkout" data-section="checkout">checkout</a></li>
-<li><a href="#doctor" data-section="doctor">doctor</a></li>
-<li><a href="#phrase" data-section="phrase">phrase</a></li>
-<li><a href="#sessions" data-section="sessions">sessions</a></li>
       </ul>
     </aside>
   </div>

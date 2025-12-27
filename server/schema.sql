@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS umk_blobs (
   encrypted_umk TEXT NOT NULL,
   kdf_params TEXT NOT NULL,
   version INTEGER NOT NULL,
+  created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
   FOREIGN KEY (user_id) REFERENCES users(id)
 );

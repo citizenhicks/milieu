@@ -33,6 +33,7 @@ pub struct UmkResponse {
     pub kdf_params: serde_json::Value,
     pub version: u32,
     pub updated_at: Option<String>,
+    pub created_at: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

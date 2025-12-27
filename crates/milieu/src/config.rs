@@ -67,7 +67,6 @@ impl Config {
         Ok(config)
     }
 
-    #[allow(dead_code)]
     pub fn save(&self) -> Result<()> {
         let path = config_path()?;
         if let Some(parent) = path.parent() {
@@ -95,7 +94,6 @@ impl Config {
         Ok(DEFAULT_BASE_URL.to_string())
     }
 
-    #[allow(dead_code)]
     pub fn set_base_url(&mut self, profile: &str, base_url: String) {
         self.profiles
             .insert(profile.to_string(), Profile { base_url });

@@ -65,15 +65,6 @@ pub fn generate_umk() -> [u8; UMK_LEN] {
     key
 }
 
-pub fn generate_keypair() -> Result<KeyPair> {
-    let secret = StaticSecret::random_from_rng(OsRng);
-    let public = PublicKey::from(&secret);
-    Ok(KeyPair {
-        private_key_b64: B64.encode(secret.to_bytes()),
-        public_key_b64: B64.encode(public.to_bytes()),
-    })
-}
-
 pub fn derive_keypair_from_umk(umk: &[u8; UMK_LEN]) -> Result<KeyPair> {
     let hk = Hkdf::<Sha256>::new(None, umk);
     let mut seed = [0u8; 32];
@@ -85,20 +76,6 @@ pub fn derive_keypair_from_umk(umk: &[u8; UMK_LEN]) -> Result<KeyPair> {
         private_key_b64: B64.encode(secret.to_bytes()),
         public_key_b64: B64.encode(public.to_bytes()),
     })
-}
-
-pub fn public_key_from_private(private_key_b64: &str) -> Result<String> {
-    let bytes = B64.decode(private_key_b64).map_err(|e| {
-        MilieuError::Crypto(format!("invalid private key base64: {}", e))
-    })?;
-    if bytes.len() != 32 {
-        return Err(MilieuError::Crypto("invalid private key length".to_string()));
-    }
-    let mut buf = [0u8; 32];
-    buf.copy_from_slice(&bytes);
-    let secret = StaticSecret::from(buf);
-    let public = PublicKey::from(&secret);
-    Ok(B64.encode(public.to_bytes()))
 }
 
 pub fn wrap_repo_key_for_public_key(

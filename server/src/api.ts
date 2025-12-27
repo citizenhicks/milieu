@@ -50,6 +50,7 @@ type UmkResponse = {
   kdf_params: Json;
   version: number;
   updated_at?: string;
+  created_at?: string;
 };
 
 type UmkRequest = {
@@ -774,7 +775,7 @@ async function handlePutManifest(
 
 async function handleGetUmk(userId: string, env: Env): Promise<Response> {
   const row = await env.DB.prepare(
-    "SELECT encrypted_umk, kdf_params, version, updated_at FROM umk_blobs WHERE user_id = ?",
+    "SELECT encrypted_umk, kdf_params, version, created_at, updated_at FROM umk_blobs WHERE user_id = ?",
   )
     .bind(userId)
     .first<Record<string, string | number>>();
@@ -787,6 +788,7 @@ async function handleGetUmk(userId: string, env: Env): Promise<Response> {
     encrypted_umk: row.encrypted_umk as string,
     kdf_params: JSON.parse(row.kdf_params as string),
     version: Number(row.version),
+    created_at: row.created_at as string,
     updated_at: row.updated_at as string,
   };
 
@@ -805,8 +807,8 @@ async function handlePutUmk(
 
   const now = new Date().toISOString();
   await env.DB.prepare(
-    `INSERT INTO umk_blobs (user_id, encrypted_umk, kdf_params, version, updated_at)
-     VALUES (?, ?, ?, ?, ?)
+    `INSERT INTO umk_blobs (user_id, encrypted_umk, kdf_params, version, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?)
      ON CONFLICT(user_id) DO UPDATE SET
        encrypted_umk = excluded.encrypted_umk,
        kdf_params = excluded.kdf_params,
@@ -818,6 +820,7 @@ async function handlePutUmk(
       body.encrypted_umk,
       JSON.stringify(body.kdf_params),
       body.version,
+      now,
       now,
     )
     .run();
